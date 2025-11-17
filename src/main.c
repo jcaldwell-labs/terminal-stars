@@ -18,7 +18,7 @@
 #define TARGET_FPS 60
 #define FRAME_TIME_US (1000000 / TARGET_FPS)
 
-static void draw_hud(const Ship3D *player1, const Ship3D *player2, int width, int height);
+static void draw_hud(const Ship3D *player1, const Ship3D *player2, int width, int height, bool ai_mode);
 static void draw_crosshair(int width, int height);
 
 int main(int argc, char *argv[]) {
@@ -51,9 +51,12 @@ int main(int argc, char *argv[]) {
     Ship3D player1;
     ship_init(&player1, 0, 0.0, 0.0, 0.0);
 
-    // Create player 2 ship (AI controlled, orbiting)
+    // Create player 2 ship (manual control)
     Ship3D player2;
     ship_init(&player2, 1, 50.0, 30.0, 0.0);
+
+    // AI mode toggle
+    bool ai_mode = false;  // Start with manual control
 
     // Create frame buffer
     int width, height;
@@ -135,25 +138,63 @@ int main(int argc, char *argv[]) {
                     // Cycle through effects
                     field->effect_mode = (field->effect_mode + 1) % EFFECT_COUNT;
                     break;
+                case 'b':
+                case 'B':
+                    // Toggle AI mode for player 2
+                    ai_mode = !ai_mode;
+                    break;
+
+                // Player 2 controls (Arrow keys, I/K/J/L, and Enter)
+                case KEY_UP:
+                    ship_pitch_down(&player2, delta_time);  // Nose down
+                    break;
+                case KEY_DOWN:
+                    ship_pitch_up(&player2, delta_time);    // Nose up
+                    break;
+                case KEY_LEFT:
+                    ship_yaw_left(&player2, delta_time);    // Turn left
+                    break;
+                case KEY_RIGHT:
+                    ship_yaw_right(&player2, delta_time);   // Turn right
+                    break;
+                case ',':
+                case '<':
+                    ship_roll_left(&player2, delta_time);   // Bank left
+                    break;
+                case '.':
+                case '>':
+                    ship_roll_right(&player2, delta_time);  // Bank right
+                    break;
+                case '\n':
+                case '\r':
+                case KEY_ENTER:
+                    ship_thrust(&player2, 1.0);             // Full thrust
+                    break;
             }
         }
 
         // Update player 1 physics (user controlled)
         ship_update(&player1, delta_time);
 
-        // Update player 2 (AI - simple orbital motion)
-        double orbit_radius = 50.0;
-        double orbit_speed = 0.5;  // radians per second
-        orbit_angle += orbit_speed * delta_time;
+        // Update player 2
+        if (ai_mode) {
+            // AI mode - simple orbital motion
+            double orbit_radius = 50.0;
+            double orbit_speed = 0.5;  // radians per second
+            orbit_angle += orbit_speed * delta_time;
 
-        // Circular orbit in XY plane, bobbing in Z
-        player2.x = cos(orbit_angle) * orbit_radius;
-        player2.y = sin(orbit_angle) * orbit_radius;
-        player2.z = sin(orbit_angle * 0.5) * 20.0;  // Bob up and down
+            // Circular orbit in XY plane, bobbing in Z
+            player2.x = cos(orbit_angle) * orbit_radius;
+            player2.y = sin(orbit_angle) * orbit_radius;
+            player2.z = sin(orbit_angle * 0.5) * 20.0;  // Bob up and down
 
-        // Face direction of motion
-        player2.yaw = orbit_angle + M_PI / 2.0;
-        player2.pitch = sin(orbit_angle * 0.5) * 0.3;  // Slight pitch variation
+            // Face direction of motion
+            player2.yaw = orbit_angle + M_PI / 2.0;
+            player2.pitch = sin(orbit_angle * 0.5) * 0.3;  // Slight pitch variation
+        } else {
+            // Manual control - update physics normally
+            ship_update(&player2, delta_time);
+        }
 
         // Update camera to follow player 1
         ship_update_camera(&player1, &field->camera);
@@ -172,7 +213,7 @@ int main(int argc, char *argv[]) {
 
         // Draw cockpit HUD
         draw_crosshair(width, height);
-        draw_hud(&player1, &player2, width, height);
+        draw_hud(&player1, &player2, width, height, ai_mode);
 
         refresh();
 
@@ -202,7 +243,14 @@ static void draw_crosshair(int width, int height) {
     attroff(COLOR_PAIR(4) | A_BOLD);
 }
 
-static void draw_hud(const Ship3D *player1, const Ship3D *player2, int width, int height) {
+static void draw_hud(const Ship3D *player1, const Ship3D *player2, int width, int height, bool ai_mode);
+static void draw_hud_impl(const Ship3D *player1, const Ship3D *player2, int width, int height, bool ai_mode);
+
+static void draw_hud(const Ship3D *player1, const Ship3D *player2, int width, int height, bool ai_mode) {
+    draw_hud_impl(player1, player2, width, height, ai_mode);
+}
+
+static void draw_hud_impl(const Ship3D *player1, const Ship3D *player2, int width, int height, bool ai_mode) {
     if (!player1) {
         return;
     }
@@ -237,11 +285,16 @@ static void draw_hud(const Ship3D *player1, const Ship3D *player2, int width, in
         attroff(COLOR_PAIR(2) | A_BOLD);
     }
 
+    // AI mode indicator
+    attron(COLOR_PAIR(3));
+    mvprintw(2, width - 20, "P2: %s", ai_mode ? "AI" : "MANUAL");
+    attroff(COLOR_PAIR(3));
+
     // Position (debug info)
     mvprintw(3, 2, "POS: (%.0f, %.0f, %.0f)", player1->x, player1->y, player1->z);
 
     // Bottom: Controls
     attron(A_BOLD);
-    mvprintw(height - 1, 2, "WASD:Pitch/Yaw Q/E:Roll Space:Thrust V:View Tab:Effect ESC:Quit");
+    mvprintw(height - 1, 2, "P1:WASD+Q/E+Space | P2:Arrows+</>+Enter | V:View B:AI ESC:Quit");
     attroff(A_BOLD);
 }
