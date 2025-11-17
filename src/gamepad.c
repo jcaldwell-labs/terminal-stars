@@ -189,7 +189,8 @@ bool gamepad_init(void) {
         joysticks[i].axis_right_y = 0.0f;
         joysticks[i].trigger_left = 0.0f;
         joysticks[i].trigger_right = 0.0f;
-        strcpy(joysticks[i].name, "No SDL2 Support");
+        strncpy(joysticks[i].name, "No SDL2 Support", sizeof(joysticks[i].name) - 1);
+        joysticks[i].name[sizeof(joysticks[i].name) - 1] = '\0';
     }
 
     initialized = true;

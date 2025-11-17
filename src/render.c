@@ -421,13 +421,10 @@ void render_text(FrameBuffer *fb, int x, int y, const char *text, int color) {
         return;
     }
 
-    int len = 0;
-    while (text[len] != '\0') {
-        len++;
-    }
+    size_t len = strlen(text);
 
-    for (int i = 0; i < len; i++) {
-        int px = x + i;
+    for (size_t i = 0; i < len; i++) {
+        int px = x + (int)i;
         if (px >= 0 && px < fb->width && y >= 0 && y < fb->height) {
             int index = y * fb->width + px;
             fb->buffer[index] = text[i];

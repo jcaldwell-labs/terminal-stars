@@ -82,16 +82,18 @@ void modes_spawn_training_targets(TrainingSession *training, int pattern) {
                 t->health = 1;
                 t->character = '@';
                 t->color = COLOR_PAIR(5); // Cyan
-                i++;
             }
             break;
         }
 
         case PATTERN_ORBITING: {
             // Create targets in orbital paths
-            for (int i = 0; i < 8 && i < MAX_TRAINING_TARGETS; i++) {
+            const int num_orbital_targets = 8;
+            for (int i = 0; i < num_orbital_targets && i < MAX_TRAINING_TARGETS; i++) {
                 TrainingTarget *t = &training->targets[i];
-                double angle = (i / 8.0) * 2.0 * M_PI;
+                // Evenly distribute targets around a circle (angle in radians)
+                // Note: 2.0 ensures floating-point division for precise angle calculation
+                double angle = 2.0 * M_PI * i / (double)num_orbital_targets;
                 double radius = 300.0;
                 t->x = cos(angle) * radius;
                 t->y = sin(angle) * radius;
@@ -195,8 +197,9 @@ void modes_render_training_hud(FrameBuffer *fb, TrainingSession *training) {
     int y = 1;
     char buf[100];
 
-    // Draw training HUD in top-right corner
+    // Draw training HUD in top-right corner (with bounds checking)
     int x = fb->width - 35;
+    if (x < 0) x = 0;
 
     snprintf(buf, sizeof(buf), "=== TRAINING MODE ===");
     render_text(fb, x, y++, buf, COLOR_PAIR(3));
@@ -237,12 +240,17 @@ void modes_render_training_hud(FrameBuffer *fb, TrainingSession *training) {
 void modes_render_menu(FrameBuffer *fb, int selection) {
     if (!fb) return;
 
-    // Clear center area for menu
+    // Calculate menu position with bounds checking for small terminals
     int menu_x = fb->width / 2 - 20;
     int menu_y = fb->height / 2 - 5;
 
+    // Ensure menu doesn't render at negative coordinates
+    if (menu_x < 5) menu_x = 5;
+    if (menu_y < 2) menu_y = 2;
+
     const char *title = "=== TERMINAL STARS ===";
-    render_text(fb, menu_x - 2, menu_y, title, COLOR_PAIR(3));
+    int title_x = (menu_x >= 2) ? menu_x - 2 : menu_x;
+    render_text(fb, title_x, menu_y, title, COLOR_PAIR(3));
 
     menu_y += 2;
     const char *options[] = {
@@ -262,7 +270,8 @@ void modes_render_menu(FrameBuffer *fb, int selection) {
     }
 
     menu_y += 6;
-    render_text(fb, menu_x - 5, menu_y, "Arrow keys to select, Enter to start", COLOR_PAIR(6));
+    int help_x = (menu_x >= 5) ? menu_x - 5 : menu_x;
+    render_text(fb, help_x, menu_y, "Arrow keys to select, Enter to start", COLOR_PAIR(6));
 }
 
 bool modes_handle_menu_input(int key, int *selection, GameMode *mode) {
@@ -308,7 +317,10 @@ void modes_setup_players(GameState *state, Ship3D *player1, Ship3D *player2) {
     switch (state->mode) {
         case MODE_SINGLE_PLAYER:
             player1->active = true;
-            player1->control_mode = CONTROL_KEYBOARD; // Will be set by input config
+            // Preserve joystick assignment if already set
+            if (player1->control_mode != CONTROL_JOYSTICK) {
+                player1->control_mode = CONTROL_KEYBOARD;
+            }
             player2->active = true;
             player2->control_mode = CONTROL_AI;
             player2->ai_behavior = AI_HUNTING;
@@ -316,23 +328,38 @@ void modes_setup_players(GameState *state, Ship3D *player1, Ship3D *player2) {
 
         case MODE_DUAL_PLAYER:
             player1->active = true;
-            player1->control_mode = CONTROL_KEYBOARD;
+            // Preserve joystick assignment if already set
+            if (player1->control_mode != CONTROL_JOYSTICK) {
+                player1->control_mode = CONTROL_KEYBOARD;
+            }
             player2->active = true;
-            player2->control_mode = CONTROL_KEYBOARD; // Or CONTROL_JOYSTICK
+            // Preserve joystick assignment if already set
+            if (player2->control_mode != CONTROL_JOYSTICK) {
+                player2->control_mode = CONTROL_KEYBOARD;
+            }
             player2->ai_behavior = AI_ORBITAL; // Not used in manual mode
             break;
 
         case MODE_COOP:
             player1->active = true;
-            player1->control_mode = CONTROL_KEYBOARD;
+            // Preserve joystick assignment if already set
+            if (player1->control_mode != CONTROL_JOYSTICK) {
+                player1->control_mode = CONTROL_KEYBOARD;
+            }
             player2->active = true;
-            player2->control_mode = CONTROL_KEYBOARD;
+            // Preserve joystick assignment if already set
+            if (player2->control_mode != CONTROL_JOYSTICK) {
+                player2->control_mode = CONTROL_KEYBOARD;
+            }
             // Both fight against AI enemies (future enhancement)
             break;
 
         case MODE_TRAINING:
             player1->active = true;
-            player1->control_mode = CONTROL_KEYBOARD;
+            // Preserve joystick assignment if already set
+            if (player1->control_mode != CONTROL_JOYSTICK) {
+                player1->control_mode = CONTROL_KEYBOARD;
+            }
             player2->active = false; // No second player in training
             player2->control_mode = CONTROL_INACTIVE;
             break;

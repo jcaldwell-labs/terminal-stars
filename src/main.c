@@ -717,12 +717,13 @@ static void process_joystick_input(Ship3D *ship, JoystickState *joy, WeaponsSyst
         }
     }
 
-    // View toggle (Y button)
-    static bool y_button_prev = false;
-    if (joy->buttons[BUTTON_Y] && !y_button_prev) {
+    // View toggle (Y button) - track state per player to avoid conflicts
+    static bool y_button_prev[2] = {false, false};
+    int player_idx = (ship->joystick_id >= 0 && ship->joystick_id < 2) ? ship->joystick_id : 0;
+    if (joy->buttons[BUTTON_Y] && !y_button_prev[player_idx]) {
         ship_toggle_view(ship);
     }
-    y_button_prev = joy->buttons[BUTTON_Y];
+    y_button_prev[player_idx] = joy->buttons[BUTTON_Y];
 }
 
 // Process keyboard input

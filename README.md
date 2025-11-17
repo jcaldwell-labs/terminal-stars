@@ -114,7 +114,7 @@ make help         # Show all available targets
 - **Enter**: Thrust
 
 **Global:**
-- **ESC / Shift+Q**: Quit
+- **ESC / Q (uppercase)**: Quit
 - **M**: Return to menu
 - **Tab**: Cycle starfield effects
 - **[ / ]**: Adjust starfield speed
