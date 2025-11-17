@@ -47,4 +47,52 @@ typedef struct {
     int height;            // Buffer height
 } FrameBuffer;
 
+// ============================================================================
+// 3D FLIGHT SIMULATOR TYPES
+// ============================================================================
+
+// Camera view mode
+typedef enum {
+    VIEW_COCKPIT,          // First-person cockpit view
+    VIEW_CHASE,            // Third-person chase camera
+    VIEW_FREE              // Free camera (debug)
+} ViewMode;
+
+// Ship3D - Player's spaceship with 6-DOF physics
+typedef struct {
+    // Position in 3D space
+    double x, y, z;
+
+    // Orientation (Euler angles in radians)
+    double pitch;          // Rotation around X axis (nose up/down)
+    double yaw;            // Rotation around Y axis (nose left/right)
+    double roll;           // Rotation around Z axis (banking)
+
+    // Linear velocity
+    double velocity_x;
+    double velocity_y;
+    double velocity_z;
+
+    // Angular velocity (for smooth rotation)
+    double angular_pitch;
+    double angular_yaw;
+    double angular_roll;
+
+    // Physics parameters
+    double thrust;         // Current thrust level (0.0 to 1.0)
+    double max_speed;      // Maximum velocity
+    double acceleration;   // Thrust acceleration
+    double turn_rate;      // Rotation speed (radians/sec)
+    double drag;           // Air/space drag coefficient
+
+    // Player info
+    int player_id;         // 0 or 1
+    int health;
+    bool active;
+
+    // Camera tracking
+    ViewMode view_mode;    // Current camera view
+    double chase_distance; // Distance for chase cam
+} Ship3D;
+
 #endif // TYPES_H

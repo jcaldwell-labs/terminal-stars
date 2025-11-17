@@ -62,12 +62,13 @@ void render_starfield(FrameBuffer *fb, const Starfield *field) {
     for (size_t i = 0; i < field->star_count; i++) {
         const Star *star = &field->stars[i];
 
-        // Apply camera rotation (except for torus effect which handles its own)
+        // Apply camera rotation
         double view_x = star->x;
         double view_y = star->y;
         double view_z = star->z;
 
-        if (field->effect_mode != EFFECT_TORUS) {
+        // Always apply camera transformations
+        if (true) {
             // Apply yaw rotation (around Y axis)
             double cos_yaw = cos(-field->camera.yaw);
             double sin_yaw = sin(-field->camera.yaw);
@@ -124,6 +125,102 @@ void render_starfield(FrameBuffer *fb, const Starfield *field) {
                 fb->colors[index] = 3; // Blue - dim
             }
         }
+    }
+}
+
+void render_ship_3d(FrameBuffer *fb, const Ship3D *ship, const Camera *camera, double zoom) {
+    if (!fb || !ship || !camera || !ship->active) {
+        return;
+    }
+
+    // Transform ship position to camera space
+    double rel_x = ship->x - camera->pos_x;
+    double rel_y = ship->y - camera->pos_y;
+    double rel_z = ship->z - camera->pos_z;
+
+    // Apply camera yaw rotation (around Y axis)
+    double cos_yaw = cos(-camera->yaw);
+    double sin_yaw = sin(-camera->yaw);
+    double view_x = rel_x * cos_yaw - rel_z * sin_yaw;
+    double view_z = rel_x * sin_yaw + rel_z * cos_yaw;
+
+    // Apply pitch rotation (around X axis)
+    double cos_pitch = cos(-camera->pitch);
+    double sin_pitch = sin(-camera->pitch);
+    double temp_z = view_z * cos_pitch - rel_y * sin_pitch;
+    double view_y = view_z * sin_pitch + rel_y * cos_pitch;
+    view_z = temp_z;
+
+    // Apply roll rotation (around Z axis)
+    double cos_roll = cos(-camera->roll);
+    double sin_roll = sin(-camera->roll);
+    double temp_x = view_x * cos_roll - view_y * sin_roll;
+    view_y = view_x * sin_roll + view_y * cos_roll;
+    view_x = temp_x;
+
+    // Skip if ship is behind camera
+    if (view_z <= 0.5) {
+        return;
+    }
+
+    // Project to 2D screen coordinates
+    int center_x = fb->width / 2;
+    int center_y = fb->height / 2;
+
+    double scale = zoom / view_z;
+    int screen_x = center_x + (int)(view_x * scale);
+    int screen_y = center_y + (int)(view_y * scale);
+
+    // Check screen bounds
+    if (screen_x < 0 || screen_x >= fb->width ||
+        screen_y < 0 || screen_y >= fb->height) {
+        return;
+    }
+
+    // Choose ship sprite based on distance
+    char sprite;
+    int color;
+
+    double distance = sqrt(view_x*view_x + view_y*view_y + view_z*view_z);
+
+    if (distance < 20.0) {
+        // Very close - large ship sprite
+        sprite = '#';
+        color = 1;  // White - bright
+
+        // Draw a larger ship (3x3)
+        for (int dy = -1; dy <= 1; dy++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                int px = screen_x + dx;
+                int py = screen_y + dy;
+                if (px >= 0 && px < fb->width && py >= 0 && py < fb->height) {
+                    int index = py * fb->width + px;
+                    fb->buffer[index] = (dx == 0 && dy == 0) ? '@' : '#';
+                    fb->colors[index] = color;
+                }
+            }
+        }
+    } else if (distance < 50.0) {
+        // Medium distance - single character
+        sprite = 'X';
+        color = 2;  // Cyan
+        int index = screen_y * fb->width + screen_x;
+        fb->buffer[index] = sprite;
+        fb->colors[index] = color;
+    } else if (distance < 100.0) {
+        // Far - small dot
+        sprite = 'o';
+        color = 3;  // Blue
+        int index = screen_y * fb->width + screen_x;
+        fb->buffer[index] = sprite;
+        fb->colors[index] = color;
+    } else {
+        // Very far - tiny dot
+        sprite = '.';
+        color = 3;  // Dim
+        int index = screen_y * fb->width + screen_x;
+        fb->buffer[index] = sprite;
+        fb->colors[index] = color;
     }
 }
 
