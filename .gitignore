@@ -1,0 +1,46 @@
+# Build artifacts
+obj/
+*.o
+*.a
+*.so
+*.dylib
+terminal-stars
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+vgcore.*
+core
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.sublime-*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Dependency files
+*.d
+
+# Backup files
+*.bak
+*.orig
+
+# Test artifacts
+tests/bin/
+test_*.txt
+*_temp.txt
+
+# Demo/example output files
+demos/*.txt
+examples/*.txt
+!examples/README.md
+examples/*.md
+!examples/README.md
