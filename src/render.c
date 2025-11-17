@@ -5,6 +5,10 @@
 #include <string.h>
 #include <math.h>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 FrameBuffer* framebuffer_create(int width, int height) {
     if (width <= 0 || height <= 0) {
         return NULL;
@@ -250,6 +254,166 @@ void framebuffer_display(const FrameBuffer *fb) {
     }
 
     refresh();
+}
+
+void render_missile(FrameBuffer *fb, const Missile *missile, const Camera *camera, double zoom) {
+    if (!fb || !missile || !camera || !missile->active) {
+        return;
+    }
+
+    // Transform missile position to camera space
+    double rel_x = missile->x - camera->pos_x;
+    double rel_y = missile->y - camera->pos_y;
+    double rel_z = missile->z - camera->pos_z;
+
+    // Apply camera yaw rotation (around Y axis)
+    double cos_yaw = cos(-camera->yaw);
+    double sin_yaw = sin(-camera->yaw);
+    double view_x = rel_x * cos_yaw - rel_z * sin_yaw;
+    double view_z = rel_x * sin_yaw + rel_z * cos_yaw;
+
+    // Apply pitch rotation (around X axis)
+    double cos_pitch = cos(-camera->pitch);
+    double sin_pitch = sin(-camera->pitch);
+    double temp_z = view_z * cos_pitch - rel_y * sin_pitch;
+    double view_y = view_z * sin_pitch + rel_y * cos_pitch;
+    view_z = temp_z;
+
+    // Apply roll rotation (around Z axis)
+    double cos_roll = cos(-camera->roll);
+    double sin_roll = sin(-camera->roll);
+    double temp_x = view_x * cos_roll - view_y * sin_roll;
+    view_y = view_x * sin_roll + view_y * cos_roll;
+    view_x = temp_x;
+
+    // Skip if behind camera
+    if (view_z <= 0.1) {
+        return;
+    }
+
+    // Project to 2D screen coordinates
+    int center_x = fb->width / 2;
+    int center_y = fb->height / 2;
+
+    double scale = zoom / view_z;
+    int screen_x = center_x + (int)(view_x * scale);
+    int screen_y = center_y + (int)(view_y * scale);
+
+    // Check screen bounds
+    if (screen_x < 0 || screen_x >= fb->width ||
+        screen_y < 0 || screen_y >= fb->height) {
+        return;
+    }
+
+    // Render missile with trail
+    int index = screen_y * fb->width + screen_x;
+    fb->buffer[index] = missile->trail_char;
+    fb->colors[index] = missile->color;
+
+    // Add a short trail behind it
+    int trail_x = screen_x - 1;
+    if (trail_x >= 0) {
+        index = screen_y * fb->width + trail_x;
+        fb->buffer[index] = '-';
+        fb->colors[index] = missile->color;
+    }
+}
+
+void render_explosion(FrameBuffer *fb, const Explosion *explosion, const Camera *camera, double zoom) {
+    if (!fb || !explosion || !camera || !explosion->active) {
+        return;
+    }
+
+    // Transform explosion position to camera space
+    double rel_x = explosion->x - camera->pos_x;
+    double rel_y = explosion->y - camera->pos_y;
+    double rel_z = explosion->z - camera->pos_z;
+
+    // Apply camera yaw rotation (around Y axis)
+    double cos_yaw = cos(-camera->yaw);
+    double sin_yaw = sin(-camera->yaw);
+    double view_x = rel_x * cos_yaw - rel_z * sin_yaw;
+    double view_z = rel_x * sin_yaw + rel_z * cos_yaw;
+
+    // Apply pitch rotation (around X axis)
+    double cos_pitch = cos(-camera->pitch);
+    double sin_pitch = sin(-camera->pitch);
+    double temp_z = view_z * cos_pitch - rel_y * sin_pitch;
+    double view_y = view_z * sin_pitch + rel_y * cos_pitch;
+    view_z = temp_z;
+
+    // Apply roll rotation (around Z axis)
+    double cos_roll = cos(-camera->roll);
+    double sin_roll = sin(-camera->roll);
+    double temp_x = view_x * cos_roll - view_y * sin_roll;
+    view_y = view_x * sin_roll + view_y * cos_roll;
+    view_x = temp_x;
+
+    // Skip if behind camera
+    if (view_z <= 0.1) {
+        return;
+    }
+
+    // Project center to 2D screen coordinates
+    int center_x = fb->width / 2;
+    int center_y = fb->height / 2;
+
+    double scale = zoom / view_z;
+    int screen_x = center_x + (int)(view_x * scale);
+    int screen_y = center_y + (int)(view_y * scale);
+
+    // Draw expanding circle
+    int screen_radius = (int)(explosion->radius * scale);
+    if (screen_radius < 1) screen_radius = 1;
+
+    // Render explosion particles in a circle pattern
+    char explosion_chars[] = {'*', 'o', '.', '+', 'x'};
+    int num_particles = 16;  // Points around circle
+
+    for (int i = 0; i < num_particles; i++) {
+        double angle = (i * 2.0 * M_PI) / num_particles;
+        int px = screen_x + (int)(cos(angle) * screen_radius);
+        int py = screen_y + (int)(sin(angle) * screen_radius * 0.5);  // Half height for terminal aspect
+
+        if (px >= 0 && px < fb->width && py >= 0 && py < fb->height) {
+            int index = py * fb->width + px;
+            // Choose character based on explosion age
+            double progress = explosion->age / explosion->max_age;
+            int char_index = (int)(progress * 4.999);
+            fb->buffer[index] = explosion_chars[char_index];
+            fb->colors[index] = explosion->color;
+        }
+    }
+
+    // Add center flash for young explosions
+    if (explosion->age < explosion->max_age * 0.3) {
+        if (screen_x >= 0 && screen_x < fb->width &&
+            screen_y >= 0 && screen_y < fb->height) {
+            int index = screen_y * fb->width + screen_x;
+            fb->buffer[index] = '@';
+            fb->colors[index] = explosion->color;
+        }
+    }
+}
+
+void render_weapons(FrameBuffer *fb, const WeaponsSystem *weapons, const Camera *camera, double zoom) {
+    if (!fb || !weapons || !camera) {
+        return;
+    }
+
+    // Render all active missiles
+    for (int i = 0; i < MAX_MISSILES; i++) {
+        if (weapons->missiles[i].active) {
+            render_missile(fb, &weapons->missiles[i], camera, zoom);
+        }
+    }
+
+    // Render all active explosions
+    for (int i = 0; i < MAX_EXPLOSIONS; i++) {
+        if (weapons->explosions[i].active) {
+            render_explosion(fb, &weapons->explosions[i], camera, zoom);
+        }
+    }
 }
 
 void framebuffer_destroy(FrameBuffer *fb) {

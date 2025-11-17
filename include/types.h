@@ -95,4 +95,66 @@ typedef struct {
     double chase_distance; // Distance for chase cam
 } Ship3D;
 
+// ============================================================================
+// WEAPONS SYSTEM TYPES
+// ============================================================================
+
+#define MAX_MISSILES 100
+#define MAX_EXPLOSIONS 50
+
+// Missile - laser projectile
+typedef struct {
+    // Position in 3D space
+    double x, y, z;
+
+    // Velocity
+    double velocity_x;
+    double velocity_y;
+    double velocity_z;
+
+    // Target point (where it's heading)
+    double target_x;
+    double target_y;
+    double target_z;
+
+    // Physics
+    double speed;           // Missile speed
+    double lifetime;        // Time until self-destruct
+    double age;             // Current age
+
+    // Ownership
+    int owner_id;           // Which player fired it
+    bool active;            // Is this missile slot in use
+
+    // Visual
+    char trail_char;        // Character for missile trail
+    int color;              // Color pair
+} Missile;
+
+// Explosion - visual effect when missile detonates
+typedef struct {
+    // Position in 3D space
+    double x, y, z;
+
+    // Animation
+    double age;             // Time since explosion started
+    double max_age;         // Total explosion duration
+    double radius;          // Current radius
+    double max_radius;      // Maximum radius
+
+    // Visual
+    bool active;            // Is this explosion slot in use
+    int color;              // Color pair
+} Explosion;
+
+// Weapons System - manages all missiles and explosions
+typedef struct {
+    Missile missiles[MAX_MISSILES];
+    Explosion explosions[MAX_EXPLOSIONS];
+
+    // Player weapon stats
+    int missiles_remaining[2];  // Per player
+    double fire_cooldown[2];    // Per player
+} WeaponsSystem;
+
 #endif // TYPES_H
