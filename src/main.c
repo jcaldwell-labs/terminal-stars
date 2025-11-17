@@ -9,6 +9,7 @@
 #include "terminal.h"
 #include "ship.h"
 #include "effects.h"
+#include "weapons.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -18,8 +19,9 @@
 #define TARGET_FPS 60
 #define FRAME_TIME_US (1000000 / TARGET_FPS)
 
-static void draw_hud(const Ship3D *player1, const Ship3D *player2, int width, int height, bool ai_mode);
+static void draw_hud(const Ship3D *player1, const Ship3D *player2, const WeaponsSystem *weapons, int width, int height, bool ai_mode);
 static void draw_crosshair(int width, int height);
+static void calculate_target_point(const Ship3D *ship, double *target_x, double *target_y, double *target_z);
 
 int main(int argc, char *argv[]) {
     (void)argc;
@@ -57,6 +59,10 @@ int main(int argc, char *argv[]) {
 
     // AI mode toggle
     bool ai_mode = false;  // Start with manual control
+
+    // Create weapons system
+    WeaponsSystem weapons;
+    weapons_init(&weapons);
 
     // Create frame buffer
     int width, height;
@@ -125,6 +131,15 @@ int main(int argc, char *argv[]) {
                 case 'v':
                 case 'V':
                     ship_toggle_view(&player1);             // Toggle camera view
+                    break;
+                case 'f':
+                case 'F':
+                    // Fire missiles!
+                    if (weapons_can_fire(&weapons, player1.player_id)) {
+                        double target_x, target_y, target_z;
+                        calculate_target_point(&player1, &target_x, &target_y, &target_z);
+                        weapons_fire(&weapons, &player1, target_x, target_y, target_z);
+                    }
                     break;
                 case '[':
                     field->speed *= 0.8;  // Slow down starfield
@@ -202,6 +217,9 @@ int main(int argc, char *argv[]) {
         // Update starfield (apply effects)
         starfield_update(field, delta_time);
 
+        // Update weapons system (missiles and explosions)
+        weapons_update(&weapons, delta_time);
+
         // Render
         framebuffer_clear(fb);
         render_starfield(fb, field);
@@ -209,11 +227,14 @@ int main(int argc, char *argv[]) {
         // Render player 2 ship in 3D space
         render_ship_3d(fb, &player2, &field->camera, field->zoom);
 
+        // Render weapons (missiles and explosions)
+        render_weapons(fb, &weapons, &field->camera, field->zoom);
+
         framebuffer_display(fb);
 
         // Draw cockpit HUD
         draw_crosshair(width, height);
-        draw_hud(&player1, &player2, width, height, ai_mode);
+        draw_hud(&player1, &player2, &weapons, width, height, ai_mode);
 
         refresh();
 
@@ -243,14 +264,14 @@ static void draw_crosshair(int width, int height) {
     attroff(COLOR_PAIR(4) | A_BOLD);
 }
 
-static void draw_hud(const Ship3D *player1, const Ship3D *player2, int width, int height, bool ai_mode);
-static void draw_hud_impl(const Ship3D *player1, const Ship3D *player2, int width, int height, bool ai_mode);
+static void draw_hud(const Ship3D *player1, const Ship3D *player2, const WeaponsSystem *weapons, int width, int height, bool ai_mode);
+static void draw_hud_impl(const Ship3D *player1, const Ship3D *player2, const WeaponsSystem *weapons, int width, int height, bool ai_mode);
 
-static void draw_hud(const Ship3D *player1, const Ship3D *player2, int width, int height, bool ai_mode) {
-    draw_hud_impl(player1, player2, width, height, ai_mode);
+static void draw_hud(const Ship3D *player1, const Ship3D *player2, const WeaponsSystem *weapons, int width, int height, bool ai_mode) {
+    draw_hud_impl(player1, player2, weapons, width, height, ai_mode);
 }
 
-static void draw_hud_impl(const Ship3D *player1, const Ship3D *player2, int width, int height, bool ai_mode) {
+static void draw_hud_impl(const Ship3D *player1, const Ship3D *player2, const WeaponsSystem *weapons, int width, int height, bool ai_mode) {
     if (!player1) {
         return;
     }
@@ -293,8 +314,51 @@ static void draw_hud_impl(const Ship3D *player1, const Ship3D *player2, int widt
     // Position (debug info)
     mvprintw(3, 2, "POS: (%.0f, %.0f, %.0f)", player1->x, player1->y, player1->z);
 
+    // Weapons info - top left below health
+    if (weapons) {
+        int missiles = weapons_get_missiles_remaining(weapons, player1->player_id);
+        attron(COLOR_PAIR(4) | A_BOLD);
+        mvprintw(4, 2, "MISSILES: %d", missiles);
+        attroff(COLOR_PAIR(4) | A_BOLD);
+
+        // Fire cooldown indicator
+        if (weapons->fire_cooldown[player1->player_id] > 0.0) {
+            attron(COLOR_PAIR(3));
+            mvprintw(4, 18, "[RELOADING]");
+            attroff(COLOR_PAIR(3));
+        } else if (missiles >= 2) {
+            attron(COLOR_PAIR(1) | A_BOLD);
+            mvprintw(4, 18, "[READY]");
+            attroff(COLOR_PAIR(1) | A_BOLD);
+        }
+    }
+
+    // Targeting reticle label
+    attron(COLOR_PAIR(4));
+    mvprintw(height / 2 - 2, width / 2 - 4, "TARGET");
+    attroff(COLOR_PAIR(4));
+
     // Bottom: Controls
     attron(A_BOLD);
-    mvprintw(height - 1, 2, "P1:WASD+Q/E+Space | P2:Arrows+</>+Enter | V:View B:AI ESC:Quit");
+    mvprintw(height - 1, 2, "P1:WASD+Q/E+Space+F | P2:Arrows+</>+Enter | V:View B:AI ESC:Quit");
     attroff(A_BOLD);
+}
+
+// Calculate target point in 3D space from ship's perspective
+// This represents where the center crosshair is pointing in 3D space
+static void calculate_target_point(const Ship3D *ship, double *target_x, double *target_y, double *target_z) {
+    if (!ship || !target_x || !target_y || !target_z) {
+        return;
+    }
+
+    // Get ship's forward vector
+    double forward_x, forward_y, forward_z;
+    ship_get_forward_vector(ship, &forward_x, &forward_y, &forward_z);
+
+    // Target is at a fixed distance in front of ship
+    double target_distance = 100.0;  // Distance to target point
+
+    *target_x = ship->x + forward_x * target_distance;
+    *target_y = ship->y + forward_y * target_distance;
+    *target_z = ship->z + forward_z * target_distance;
 }
