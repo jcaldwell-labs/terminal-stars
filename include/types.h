@@ -14,16 +14,29 @@ typedef struct {
     char character;     // Character to render ('.' '*' '+' etc)
 } Star;
 
+// Camera system for POV control
+typedef struct {
+    double pos_x;       // Camera position X
+    double pos_y;       // Camera position Y
+    double pos_z;       // Camera position Z
+    double yaw;         // Rotation around Y axis (left/right turn)
+    double pitch;       // Rotation around X axis (up/down look)
+    double roll;        // Rotation around Z axis (banking)
+} Camera;
+
 // Starfield configuration and state
 typedef struct {
     Star *stars;           // Array of stars
     size_t star_count;     // Number of stars
     double speed;          // Motion speed
-    double rotation_x;     // Rotation around X axis
-    double rotation_y;     // Rotation around Y axis
-    double rotation_z;     // Rotation around Z axis
+    Camera camera;         // Camera with position and orientation
     double zoom;           // Zoom level
     int effect_mode;       // Current effect mode
+
+    // Torus path parameters (for EFFECT_TORUS)
+    double torus_t;        // Path parameter (0 to 2π)
+    double torus_major_r;  // Major radius (distance from center)
+    double torus_minor_r;  // Minor radius (tube thickness)
 } Starfield;
 
 // Frame buffer for double buffering

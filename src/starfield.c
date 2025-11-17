@@ -52,11 +52,21 @@ Starfield* starfield_create(size_t star_count) {
 
     field->star_count = star_count;
     field->speed = 1.0;
-    field->rotation_x = 0.0;
-    field->rotation_y = 0.0;
-    field->rotation_z = 0.0;
     field->zoom = 50.0;
     field->effect_mode = EFFECT_LINEAR;
+
+    // Initialize camera
+    field->camera.pos_x = 0.0;
+    field->camera.pos_y = 0.0;
+    field->camera.pos_z = 0.0;
+    field->camera.yaw = 0.0;
+    field->camera.pitch = 0.0;
+    field->camera.roll = 0.0;
+
+    // Initialize torus path parameters
+    field->torus_t = 0.0;
+    field->torus_major_r = 50.0;    // Major radius
+    field->torus_minor_r = 20.0;    // Minor radius (tube thickness)
 
     // Initialize all stars
     for (size_t i = 0; i < star_count; i++) {
@@ -117,6 +127,9 @@ void starfield_apply_effect(Starfield *field, int effect_mode) {
             break;
         case EFFECT_WAVE:
             effect_wave(field, 0.016);
+            break;
+        case EFFECT_TORUS:
+            effect_torus(field, 0.016);
             break;
         default:
             effect_linear(field, 0.016);

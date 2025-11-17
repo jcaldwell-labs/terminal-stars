@@ -167,6 +167,78 @@ void effect_wave(Starfield *field, double delta_time) {
     }
 }
 
+void effect_torus(Starfield *field, double delta_time) {
+    if (!field || !field->stars) {
+        return;
+    }
+
+    // Update path parameter (advance along the torus)
+    double path_speed = field->speed * 1.5 * delta_time;
+    field->torus_t += path_speed;
+
+    // Keep parameter in range [0, 2π]
+    if (field->torus_t > 2.0 * M_PI) {
+        field->torus_t -= 2.0 * M_PI;
+    }
+
+    // Calculate camera position on torus path using parametric equations
+    // Using a Lissajous-style path for interesting roller coaster motion
+    double major_r = field->torus_major_r;
+    double minor_r = field->torus_minor_r;
+    double t = field->torus_t;
+
+    // Parametric torus path (twisted for roller coaster effect)
+    field->camera.pos_x = (major_r + minor_r * cos(t * 2.0)) * cos(t);
+    field->camera.pos_y = (major_r + minor_r * cos(t * 2.0)) * sin(t);
+    field->camera.pos_z = minor_r * sin(t * 2.0);
+
+    // Calculate camera orientation (look-ahead along path)
+    double t_ahead = t + 0.1; // Look slightly ahead
+    double look_x = (major_r + minor_r * cos(t_ahead * 2.0)) * cos(t_ahead);
+    double look_y = (major_r + minor_r * cos(t_ahead * 2.0)) * sin(t_ahead);
+    double look_z = minor_r * sin(t_ahead * 2.0);
+
+    // Calculate direction vector
+    double dir_x = look_x - field->camera.pos_x;
+    double dir_y = look_y - field->camera.pos_y;
+    double dir_z = look_z - field->camera.pos_z;
+
+    // Convert to yaw and pitch
+    field->camera.yaw = atan2(dir_y, dir_x);
+    field->camera.pitch = atan2(dir_z, sqrt(dir_x*dir_x + dir_y*dir_y));
+
+    // Add banking (roll) based on turn sharpness
+    field->camera.roll = -cos(t * 2.0) * 0.5; // Banking in turns
+
+    // Stars move past the camera (relative motion)
+    // Transform stars to camera-relative coordinates
+    for (size_t i = 0; i < field->star_count; i++) {
+        Star *star = &field->stars[i];
+
+        // Translate to camera space
+        double rel_x = star->x - field->camera.pos_x;
+        double rel_y = star->y - field->camera.pos_y;
+        double rel_z = star->z - field->camera.pos_z;
+
+        // Apply yaw rotation
+        double cos_yaw = cos(-field->camera.yaw);
+        double sin_yaw = sin(-field->camera.yaw);
+        double temp_x = rel_x * cos_yaw - rel_y * sin_yaw;
+        double temp_y = rel_x * sin_yaw + rel_y * cos_yaw;
+
+        // Apply pitch rotation
+        double cos_pitch = cos(-field->camera.pitch);
+        double sin_pitch = sin(-field->camera.pitch);
+        double temp_z = rel_z * cos_pitch - temp_x * sin_pitch;
+        temp_x = rel_z * sin_pitch + temp_x * cos_pitch;
+
+        // Update star position
+        star->x = temp_x;
+        star->y = temp_y;
+        star->z = temp_z;
+    }
+}
+
 const char* effect_get_name(EffectMode mode) {
     static const char* names[] = {
         "Linear",
@@ -174,7 +246,8 @@ const char* effect_get_name(EffectMode mode) {
         "Warp Speed",
         "Tunnel",
         "Explode",
-        "Wave"
+        "Wave",
+        "Torus Coaster"
     };
 
     if (mode >= 0 && mode < EFFECT_COUNT) {

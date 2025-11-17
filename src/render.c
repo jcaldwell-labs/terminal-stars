@@ -1,4 +1,5 @@
 #include "render.h"
+#include "effects.h"
 #include <ncurses.h>
 #include <stdlib.h>
 #include <string.h>
@@ -61,16 +62,47 @@ void render_starfield(FrameBuffer *fb, const Starfield *field) {
     for (size_t i = 0; i < field->star_count; i++) {
         const Star *star = &field->stars[i];
 
+        // Apply camera rotation (except for torus effect which handles its own)
+        double view_x = star->x;
+        double view_y = star->y;
+        double view_z = star->z;
+
+        if (field->effect_mode != EFFECT_TORUS) {
+            // Apply yaw rotation (around Y axis)
+            double cos_yaw = cos(-field->camera.yaw);
+            double sin_yaw = sin(-field->camera.yaw);
+            double temp_x = view_x * cos_yaw - view_z * sin_yaw;
+            double temp_z = view_x * sin_yaw + view_z * cos_yaw;
+            view_x = temp_x;
+            view_z = temp_z;
+
+            // Apply pitch rotation (around X axis)
+            double cos_pitch = cos(-field->camera.pitch);
+            double sin_pitch = sin(-field->camera.pitch);
+            temp_z = view_z * cos_pitch - view_y * sin_pitch;
+            double temp_y = view_z * sin_pitch + view_y * cos_pitch;
+            view_y = temp_y;
+            view_z = temp_z;
+
+            // Apply roll rotation (around Z axis)
+            double cos_roll = cos(-field->camera.roll);
+            double sin_roll = sin(-field->camera.roll);
+            temp_x = view_x * cos_roll - view_y * sin_roll;
+            temp_y = view_x * sin_roll + view_y * cos_roll;
+            view_x = temp_x;
+            view_y = temp_y;
+        }
+
         // Skip stars that are behind the viewer
-        if (star->z <= 0.1) {
+        if (view_z <= 0.1) {
             continue;
         }
 
         // Project 3D position to 2D screen using perspective projection
         // Formula: screen_pos = (pos / z) * zoom
-        double scale = field->zoom / star->z;
-        int screen_x = center_x + (int)(star->x * scale);
-        int screen_y = center_y + (int)(star->y * scale);
+        double scale = field->zoom / view_z;
+        int screen_x = center_x + (int)(view_x * scale);
+        int screen_y = center_y + (int)(view_y * scale);
 
         // Check if star is within screen bounds
         if (screen_x >= 0 && screen_x < fb->width &&

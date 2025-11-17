@@ -137,12 +137,38 @@ static void process_input(InputAction action, Starfield *field, bool *running) {
             field->effect_mode = (field->effect_mode + 1) % EFFECT_COUNT;
             break;
 
-        case INPUT_PAN_UP:
-        case INPUT_PAN_DOWN:
-        case INPUT_PAN_LEFT:
-        case INPUT_PAN_RIGHT:
-        case INPUT_TOGGLE_ROTATION:
-            // These could be implemented for additional control
+        case INPUT_TURN_UP:
+            field->camera.pitch += 0.05;  // Pitch up
+            break;
+
+        case INPUT_TURN_DOWN:
+            field->camera.pitch -= 0.05;  // Pitch down
+            break;
+
+        case INPUT_TURN_LEFT:
+            field->camera.yaw -= 0.05;    // Yaw left
+            break;
+
+        case INPUT_TURN_RIGHT:
+            field->camera.yaw += 0.05;    // Yaw right
+            break;
+
+        case INPUT_ROLL_LEFT:
+            field->camera.roll -= 0.05;   // Bank left
+            break;
+
+        case INPUT_ROLL_RIGHT:
+            field->camera.roll += 0.05;   // Bank right
+            break;
+
+        case INPUT_TOGGLE_AUTOPILOT:
+            // Toggle between manual and auto (torus) mode
+            // For now, just cycle to torus effect
+            if (field->effect_mode == EFFECT_TORUS) {
+                field->effect_mode = EFFECT_LINEAR;
+            } else {
+                field->effect_mode = EFFECT_TORUS;
+            }
             break;
 
         case INPUT_NONE:
@@ -166,7 +192,7 @@ static void draw_hud(const Starfield *field) {
     attroff(A_BOLD);
 
     // Draw help at bottom
-    mvprintw(height - 1, 2, "Q:Quit  SPACE:Effect  +/-:Zoom  []:Speed");
+    mvprintw(height - 1, 2, "ESC:Quit  TAB:Effect  Arrows:Turn  Q/E:Roll  R:Torus  +/-:Zoom  []:Speed");
 
     refresh();
 }

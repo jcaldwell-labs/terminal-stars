@@ -18,32 +18,39 @@ InputAction input_poll(void) {
 
     // Map keys to actions
     switch (ch) {
-        // Quit
-        case 'q':
-        case 'Q':
+        // Quit (ESC only, Q is now for roll)
         case 27: // ESC
             return INPUT_QUIT;
 
-        // Pan controls (arrow keys)
+        // Turn controls (arrow keys = yaw/pitch, Q/E = roll)
         case KEY_UP:
         case 'w':
         case 'W':
-            return INPUT_PAN_UP;
+            return INPUT_TURN_UP;    // Pitch up
 
         case KEY_DOWN:
         case 's':
         case 'S':
-            return INPUT_PAN_DOWN;
+            return INPUT_TURN_DOWN;  // Pitch down
 
         case KEY_LEFT:
         case 'a':
         case 'A':
-            return INPUT_PAN_LEFT;
+            return INPUT_TURN_LEFT;  // Yaw left
 
         case KEY_RIGHT:
         case 'd':
         case 'D':
-            return INPUT_PAN_RIGHT;
+            return INPUT_TURN_RIGHT; // Yaw right
+
+        // Roll controls (banking)
+        case 'q':
+        case 'Q':
+            return INPUT_ROLL_LEFT;  // Bank left
+
+        case 'e':
+        case 'E':
+            return INPUT_ROLL_RIGHT; // Bank right
 
         // Zoom controls
         case '+':
@@ -69,16 +76,15 @@ InputAction input_poll(void) {
 
         // Effect cycling
         case ' ':
-        case 'e':
-        case 'E':
         case '\n':
         case KEY_ENTER:
+        case '\t':  // Tab to cycle effects
             return INPUT_CYCLE_EFFECT;
 
-        // Rotation toggle
+        // Autopilot toggle (for torus effect)
         case 'r':
         case 'R':
-            return INPUT_TOGGLE_ROTATION;
+            return INPUT_TOGGLE_AUTOPILOT;
 
         default:
             return INPUT_NONE;
