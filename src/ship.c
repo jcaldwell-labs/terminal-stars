@@ -78,11 +78,12 @@ void ship_update(Ship3D *ship, double delta_time) {
 
 void ship_get_forward_vector(const Ship3D *ship, double *fx, double *fy, double *fz) {
     // Calculate forward direction from yaw and pitch
-    // Forward = (cos(yaw) * cos(pitch), sin(yaw) * cos(pitch), sin(pitch))
+    // Z-forward coordinate system (matches rendering system)
+    // Forward vector when yaw=0, pitch=0 should be (0, 0, 1) pointing along +Z
     double cos_pitch = cos(ship->pitch);
-    *fx = cos(ship->yaw) * cos_pitch;
-    *fy = sin(ship->yaw) * cos_pitch;
-    *fz = sin(ship->pitch);
+    *fx = sin(ship->yaw) * cos_pitch;     // Right component
+    *fy = sin(ship->pitch);                // Up/down component
+    *fz = cos(ship->yaw) * cos_pitch;     // Forward component (Z-axis)
 }
 
 void ship_thrust(Ship3D *ship, double amount) {

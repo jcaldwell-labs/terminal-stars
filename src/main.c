@@ -97,7 +97,7 @@ int main(int argc, char *argv[]) {
         timeout(0);
         int key = getch();
 
-        if (key == 'q' || key == 'Q' || key == 27) {  // ESC
+        if (key == 'Q' || key == 27) {  // Uppercase Q or ESC to quit
             running = false;
         } else if (key != ERR) {
             // Flight controls for player 1
@@ -340,7 +340,7 @@ static void draw_hud_impl(const Ship3D *player1, const Ship3D *player2, const We
 
     // Bottom: Controls
     attron(A_BOLD);
-    mvprintw(height - 1, 2, "P1:WASD+Q/E+Space+F | P2:Arrows+</>+Enter | V:View B:AI ESC:Quit");
+    mvprintw(height - 1, 2, "P1:WASD+q/e+Space+F | P2:Arrows+</>+Enter | V:View B:AI SHIFT+Q/ESC:Quit");
     attroff(A_BOLD);
 }
 
