@@ -2,6 +2,16 @@ CC = gcc
 CFLAGS = -Wall -Wextra -Werror -Iinclude -std=gnu99
 LDFLAGS = -lncurses -lm
 TARGET = terminal-stars
+
+# Check if SDL2 is available
+SDL2_EXISTS := $(shell command -v sdl2-config 2> /dev/null)
+ifdef SDL2_EXISTS
+    CFLAGS += $(shell sdl2-config --cflags) -DHAVE_SDL2
+    LDFLAGS += $(shell sdl2-config --libs)
+    $(info SDL2 found - enabling gamepad support)
+else
+    $(info SDL2 not found - gamepad support disabled)
+endif
 SRCDIR = src
 INCDIR = include
 OBJDIR = obj
@@ -73,5 +83,6 @@ help:
 	@echo "  make help     - Show this help message"
 	@echo ""
 	@echo "Requirements:"
-	@echo "  - GCC compiler"
-	@echo "  - ncurses library (libncurses-dev)"
+	@echo "  - GCC compiler (required)"
+	@echo "  - ncurses library - libncurses-dev (required)"
+	@echo "  - SDL2 library - libsdl2-dev (optional, for joystick support)"

@@ -58,6 +58,31 @@ typedef enum {
     VIEW_FREE              // Free camera (debug)
 } ViewMode;
 
+// Game mode - different play modes
+typedef enum {
+    MODE_SINGLE_PLAYER,    // Single player vs AI
+    MODE_DUAL_PLAYER,      // Two player competitive
+    MODE_COOP,             // Two player cooperative
+    MODE_TRAINING          // Training simulator mode
+} GameMode;
+
+// Player control mode
+typedef enum {
+    CONTROL_KEYBOARD,      // Keyboard controls
+    CONTROL_JOYSTICK,      // Joystick/gamepad controls
+    CONTROL_AI,            // AI controlled
+    CONTROL_INACTIVE       // Player slot inactive
+} ControlMode;
+
+// AI behavior type
+typedef enum {
+    AI_ORBITAL,            // Orbit around center
+    AI_HUNTING,            // Chase and attack player
+    AI_EVASIVE,            // Avoid player attacks
+    AI_FORMATION,          // Fly in formation
+    AI_TRAINING_DUMMY      // Static training target
+} AIBehaviorType;
+
 // Ship3D - Player's spaceship with 6-DOF physics
 typedef struct {
     // Position in 3D space
@@ -89,6 +114,11 @@ typedef struct {
     int player_id;         // 0 or 1
     int health;
     bool active;
+
+    // Control system
+    ControlMode control_mode;     // How this ship is controlled
+    AIBehaviorType ai_behavior;   // AI behavior (if AI controlled)
+    int joystick_id;              // SDL joystick ID (-1 for none)
 
     // Camera tracking
     ViewMode view_mode;    // Current camera view
@@ -156,5 +186,56 @@ typedef struct {
     int missiles_remaining[2];  // Per player
     double fire_cooldown[2];    // Per player
 } WeaponsSystem;
+
+// ============================================================================
+// TRAINING MODE TYPES
+// ============================================================================
+
+#define MAX_TRAINING_TARGETS 20
+
+// Training target - static or moving targets for practice
+typedef struct {
+    // Position in 3D space
+    double x, y, z;
+
+    // Velocity (for moving targets)
+    double velocity_x;
+    double velocity_y;
+    double velocity_z;
+
+    // Target properties
+    double radius;          // Size of target
+    int points;             // Points awarded for hit
+    bool active;            // Is this target active
+    bool is_static;         // Static or moving target
+    int health;             // Hits required to destroy
+
+    // Visual
+    char character;         // Display character
+    int color;              // Color pair
+} TrainingTarget;
+
+// Training session data
+typedef struct {
+    TrainingTarget targets[MAX_TRAINING_TARGETS];
+    int score;              // Player's score
+    int targets_hit;        // Number of targets destroyed
+    int shots_fired;        // Total shots fired
+    double session_time;    // Time elapsed in training
+    double accuracy;        // Hit accuracy percentage
+} TrainingSession;
+
+// ============================================================================
+// GAME STATE
+// ============================================================================
+
+// Game state - encapsulates all game data
+typedef struct {
+    GameMode mode;          // Current game mode
+    bool paused;            // Is game paused
+    bool show_menu;         // Show mode selection menu
+    int menu_selection;     // Current menu selection
+    TrainingSession *training;  // Training session data (if in training mode)
+} GameState;
 
 #endif // TYPES_H

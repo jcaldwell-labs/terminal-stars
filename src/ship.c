@@ -26,6 +26,10 @@ void ship_init(Ship3D *ship, int player_id, double x, double y, double z) {
     ship->health = 3;
     ship->active = true;
 
+    ship->control_mode = CONTROL_KEYBOARD;  // Default to keyboard
+    ship->ai_behavior = AI_ORBITAL;         // Default AI behavior
+    ship->joystick_id = -1;                 // No joystick assigned
+
     ship->view_mode = VIEW_COCKPIT;  // Start in cockpit view
     ship->chase_distance = SHIP_CHASE_DISTANCE;
 }

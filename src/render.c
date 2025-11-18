@@ -416,6 +416,23 @@ void render_weapons(FrameBuffer *fb, const WeaponsSystem *weapons, const Camera 
     }
 }
 
+void render_text(FrameBuffer *fb, int x, int y, const char *text, int color) {
+    if (!fb || !text) {
+        return;
+    }
+
+    size_t len = strlen(text);
+
+    for (size_t i = 0; i < len; i++) {
+        int px = x + (int)i;
+        if (px >= 0 && px < fb->width && y >= 0 && y < fb->height) {
+            int index = y * fb->width + px;
+            fb->buffer[index] = text[i];
+            fb->colors[index] = color;
+        }
+    }
+}
+
 void framebuffer_destroy(FrameBuffer *fb) {
     if (fb) {
         free(fb->buffer);

@@ -10,6 +10,8 @@
 #include "ship.h"
 #include "effects.h"
 #include "weapons.h"
+#include "gamepad.h"
+#include "modes.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -25,6 +27,8 @@ static void calculate_target_point(const Ship3D *ship, double *target_x, double 
 static void draw_unit_circle_hud(const Ship3D *ship, int width, int height);
 static void draw_enemy_direction_indicator(const Ship3D *player, const Ship3D *enemy, const Camera *camera, int width, int height, int frame_count);
 static void draw_radar_overlay(const Ship3D *player, const Ship3D *enemy, const WeaponsSystem *weapons, int width, int height);
+static void process_joystick_input(Ship3D *ship, JoystickState *joy, WeaponsSystem *weapons, double dt, TrainingSession *training);
+static void process_keyboard_input(Ship3D *player1, Ship3D *player2, Starfield *field, WeaponsSystem *weapons, GameState *state, double dt, bool *running);
 
 int main(int argc, char *argv[]) {
     (void)argc;
@@ -39,6 +43,20 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
+    // Initialize gamepad system
+    if (!gamepad_init()) {
+        fprintf(stderr, "Warning: Failed to initialize gamepad system (joysticks disabled)\n");
+        // Continue anyway - joysticks are optional
+    }
+
+    // Initialize game state
+    GameState game_state;
+    modes_init_game_state(&game_state);
+
+    // Training session (allocated when needed)
+    TrainingSession training;
+    game_state.training = &training;
+
     // Create starfield
     Starfield *field = starfield_create(DEFAULT_STAR_COUNT);
     if (!field) {
@@ -52,16 +70,34 @@ int main(int argc, char *argv[]) {
     field->speed = 1.0;
     field->zoom = 50.0;
 
-    // Create player 1 ship at origin
+    // Create player ships
     Ship3D player1;
     ship_init(&player1, 0, 0.0, 0.0, 0.0);
 
-    // Create player 2 ship (manual control)
     Ship3D player2;
     ship_init(&player2, 1, 50.0, 30.0, 0.0);
 
-    // AI mode toggle
-    bool ai_mode = false;  // Start with manual control
+    // Set up control modes based on available devices
+    player1.joystick_id = -1;  // Default to keyboard
+    player2.joystick_id = -1;
+
+    int joy_count = gamepad_count();
+    if (joy_count >= 1) {
+        player1.joystick_id = 0;
+        player1.control_mode = CONTROL_JOYSTICK;
+    } else {
+        player1.control_mode = CONTROL_KEYBOARD;
+    }
+
+    if (joy_count >= 2) {
+        player2.joystick_id = 1;
+        player2.control_mode = CONTROL_JOYSTICK;
+    } else {
+        player2.control_mode = CONTROL_KEYBOARD;
+    }
+
+    // AI mode toggle (for backward compatibility)
+    bool ai_mode = false;
 
     // Create weapons system
     WeaponsSystem weapons;
@@ -99,98 +135,43 @@ int main(int argc, char *argv[]) {
         terminal_handle_resize();
         terminal_get_size(&width, &height);
 
-        // Handle input (non-blocking)
-        timeout(0);
-        int key = getch();
+        // Handle menu input if menu is shown
+        if (game_state.show_menu) {
+            timeout(0);
+            int key = getch();
+            if (key != ERR) {
+                if (modes_handle_menu_input(key, &game_state.menu_selection, &game_state.mode)) {
+                    // Mode selected, initialize game
+                    game_state.show_menu = false;
+                    modes_setup_players(&game_state, &player1, &player2);
 
-        if (key == 'Q' || key == 27) {  // Uppercase Q or ESC to quit
-            running = false;
-        } else if (key != ERR) {
-            // Flight controls for player 1
-            switch (key) {
-                case 'w':
-                case 'W':
-                    ship_pitch_down(&player1, delta_time);  // Nose down
-                    break;
-                case 's':
-                case 'S':
-                    ship_pitch_up(&player1, delta_time);    // Nose up
-                    break;
-                case 'a':
-                case 'A':
-                    ship_yaw_left(&player1, delta_time);    // Turn left
-                    break;
-                case 'd':
-                case 'D':
-                    ship_yaw_right(&player1, delta_time);   // Turn right
-                    break;
-                case 'q':
-                    ship_roll_left(&player1, delta_time);   // Bank left
-                    break;
-                case 'e':
-                case 'E':
-                    ship_roll_right(&player1, delta_time);  // Bank right
-                    break;
-                case ' ':
-                    ship_thrust(&player1, 1.0);             // Full thrust
-                    break;
-                case 'v':
-                case 'V':
-                    ship_toggle_view(&player1);             // Toggle camera view
-                    break;
-                case 'f':
-                case 'F':
-                    // Fire missiles!
-                    if (weapons_can_fire(&weapons, player1.player_id)) {
-                        double target_x, target_y, target_z;
-                        calculate_target_point(&player1, &target_x, &target_y, &target_z);
-                        weapons_fire(&weapons, &player1, target_x, target_y, target_z);
+                    if (game_state.mode == MODE_TRAINING) {
+                        modes_init_training(&training);
                     }
-                    break;
-                case '[':
-                    field->speed *= 0.8;  // Slow down starfield
-                    if (field->speed < 0.1) field->speed = 0.1;
-                    break;
-                case ']':
-                    field->speed *= 1.2;  // Speed up starfield
-                    if (field->speed > 5.0) field->speed = 5.0;
-                    break;
-                case '\t':  // Tab
-                    // Cycle through effects
-                    field->effect_mode = (field->effect_mode + 1) % EFFECT_COUNT;
-                    break;
-                case 'b':
-                case 'B':
-                    // Toggle AI mode for player 2
-                    ai_mode = !ai_mode;
-                    break;
+                }
+            }
+        } else {
+            // Update gamepad states
+            gamepad_update();
 
-                // Player 2 controls (Arrow keys, I/K/J/L, and Enter)
-                case KEY_UP:
-                    ship_pitch_down(&player2, delta_time);  // Nose down
-                    break;
-                case KEY_DOWN:
-                    ship_pitch_up(&player2, delta_time);    // Nose up
-                    break;
-                case KEY_LEFT:
-                    ship_yaw_left(&player2, delta_time);    // Turn left
-                    break;
-                case KEY_RIGHT:
-                    ship_yaw_right(&player2, delta_time);   // Turn right
-                    break;
-                case ',':
-                case '<':
-                    ship_roll_left(&player2, delta_time);   // Bank left
-                    break;
-                case '.':
-                case '>':
-                    ship_roll_right(&player2, delta_time);  // Bank right
-                    break;
-                case '\n':
-                case '\r':
-                case KEY_ENTER:
-                    ship_thrust(&player2, 1.0);             // Full thrust
-                    break;
+            // Handle keyboard input
+            process_keyboard_input(&player1, &player2, field, &weapons, &game_state, delta_time, &running);
+
+            // Handle joystick input for player 1
+            if (player1.control_mode == CONTROL_JOYSTICK && player1.joystick_id >= 0) {
+                JoystickState *joy1 = gamepad_get_state(player1.joystick_id);
+                if (joy1) {
+                    process_joystick_input(&player1, joy1, &weapons, delta_time,
+                                          game_state.mode == MODE_TRAINING ? &training : NULL);
+                }
+            }
+
+            // Handle joystick input for player 2
+            if (player2.control_mode == CONTROL_JOYSTICK && player2.joystick_id >= 0 && player2.active) {
+                JoystickState *joy2 = gamepad_get_state(player2.joystick_id);
+                if (joy2) {
+                    process_joystick_input(&player2, joy2, &weapons, delta_time, NULL);
+                }
             }
         }
 
@@ -226,26 +207,75 @@ int main(int argc, char *argv[]) {
         // Update weapons system (missiles and explosions)
         weapons_update(&weapons, delta_time);
 
+        // Update training mode if active
+        if (game_state.mode == MODE_TRAINING) {
+            modes_update_training(&training, &weapons, delta_time);
+        }
+
         // Render
         framebuffer_clear(fb);
-        render_starfield(fb, field);
 
-        // Render player 2 ship in 3D space
-        render_ship_3d(fb, &player2, &field->camera, field->zoom);
+        if (game_state.show_menu) {
+            // Show menu instead of game
+            modes_render_menu(fb, game_state.menu_selection);
+        } else {
+            // Normal game rendering
+            render_starfield(fb, field);
 
-        // Render weapons (missiles and explosions)
-        render_weapons(fb, &weapons, &field->camera, field->zoom);
+            // Render player 2 ship in 3D space (if active)
+            if (player2.active) {
+                render_ship_3d(fb, &player2, &field->camera, field->zoom);
+            }
+
+            // Render training targets if in training mode
+            if (game_state.mode == MODE_TRAINING) {
+                for (int i = 0; i < MAX_TRAINING_TARGETS; i++) {
+                    TrainingTarget *t = &training.targets[i];
+                    if (t->active) {
+                        // Render target as a ship-like object
+                        // Calculate screen position
+                        double dx = t->x - field->camera.pos_x;
+                        double dy = t->y - field->camera.pos_y;
+                        double dz = t->z - field->camera.pos_z;
+
+                        // Simple perspective projection
+                        if (dz > 1.0) {
+                            int sx = width / 2 + (int)(dx * field->zoom / dz);
+                            int sy = height / 2 + (int)(dy * field->zoom / dz);
+
+                            if (sx >= 0 && sx < width && sy >= 0 && sy < height) {
+                                fb->buffer[sy * width + sx] = t->character;
+                                fb->colors[sy * width + sx] = t->color;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Render weapons (missiles and explosions)
+            render_weapons(fb, &weapons, &field->camera, field->zoom);
+        }
 
         framebuffer_display(fb);
 
-        // Draw cockpit HUD
-        draw_crosshair(width, height);
-        draw_hud(&player1, &player2, &weapons, width, height, ai_mode, frame_count);
+        if (!game_state.show_menu) {
+            // Draw cockpit HUD
+            draw_crosshair(width, height);
+            draw_hud(&player1, &player2, &weapons, width, height, ai_mode, frame_count);
 
-        // Draw advanced HUD elements
-        draw_unit_circle_hud(&player1, width, height);
-        draw_enemy_direction_indicator(&player1, &player2, &field->camera, width, height, frame_count);
-        draw_radar_overlay(&player1, &player2, &weapons, width, height);
+            // Draw advanced HUD elements
+            draw_unit_circle_hud(&player1, width, height);
+
+            if (player2.active) {
+                draw_enemy_direction_indicator(&player1, &player2, &field->camera, width, height, frame_count);
+                draw_radar_overlay(&player1, &player2, &weapons, width, height);
+            }
+
+            // Draw training HUD if in training mode
+            if (game_state.mode == MODE_TRAINING) {
+                modes_render_training_hud(fb, &training);
+            }
+        }
 
         refresh();
 
@@ -254,6 +284,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Cleanup
+    gamepad_cleanup();
     framebuffer_destroy(fb);
     starfield_destroy(field);
     terminal_cleanup();
@@ -625,4 +656,221 @@ static void draw_radar_overlay(const Ship3D *player, const Ship3D *enemy,
     attron(COLOR_PAIR(2));
     mvprintw(radar_y + radar_size + 1, radar_x + 2, "50u/div");
     attroff(COLOR_PAIR(2));
+}
+
+// Process joystick input for a ship
+static void process_joystick_input(Ship3D *ship, JoystickState *joy, WeaponsSystem *weapons, double dt, TrainingSession *training) {
+    if (!ship || !joy) return;
+
+    // Left stick: pitch and yaw
+    float pitch_input = joy->axis_left_y;
+    float yaw_input = joy->axis_left_x;
+
+    if (pitch_input < -0.1) {
+        ship_pitch_down(ship, dt * fabs(pitch_input));
+    } else if (pitch_input > 0.1) {
+        ship_pitch_up(ship, dt * fabs(pitch_input));
+    }
+
+    if (yaw_input < -0.1) {
+        ship_yaw_left(ship, dt * fabs(yaw_input));
+    } else if (yaw_input > 0.1) {
+        ship_yaw_right(ship, dt * fabs(yaw_input));
+    }
+
+    // Right stick or triggers: roll
+    float roll_input = joy->axis_right_x;
+    if (roll_input < -0.1) {
+        ship_roll_left(ship, dt * fabs(roll_input));
+    } else if (roll_input > 0.1) {
+        ship_roll_right(ship, dt * fabs(roll_input));
+    }
+
+    // Use shoulder buttons for roll if right stick not available
+    if (joy->buttons[BUTTON_LB]) {
+        ship_roll_left(ship, dt);
+    }
+    if (joy->buttons[BUTTON_RB]) {
+        ship_roll_right(ship, dt);
+    }
+
+    // Triggers or A button: thrust
+    float thrust_input = joy->trigger_right;
+    if (thrust_input > 0.1 || joy->buttons[BUTTON_A]) {
+        ship_thrust(ship, 1.0);
+    }
+
+    // Fire weapon (X button)
+    if (joy->buttons[BUTTON_X] && weapons) {
+        if (weapons_can_fire(weapons, ship->player_id)) {
+            double target_x, target_y, target_z;
+            calculate_target_point(ship, &target_x, &target_y, &target_z);
+            weapons_fire(weapons, ship, target_x, target_y, target_z);
+
+            // Track shots fired in training mode
+            if (training) {
+                training->shots_fired++;
+            }
+
+            // Rumble feedback
+            gamepad_rumble(ship->joystick_id, 0.5f, 100);
+        }
+    }
+
+    // View toggle (Y button) - track state per player to avoid conflicts
+    static bool y_button_prev[2] = {false, false};
+    int player_idx = (ship->joystick_id >= 0 && ship->joystick_id < 2) ? ship->joystick_id : 0;
+    if (joy->buttons[BUTTON_Y] && !y_button_prev[player_idx]) {
+        ship_toggle_view(ship);
+    }
+    y_button_prev[player_idx] = joy->buttons[BUTTON_Y];
+}
+
+// Process keyboard input
+static void process_keyboard_input(Ship3D *player1, Ship3D *player2, Starfield *field,
+                                   WeaponsSystem *weapons, GameState *state, double dt, bool *running) {
+    timeout(0);
+    int key = getch();
+
+    if (key == ERR) return;
+
+    // Global controls
+    switch (key) {
+        case 'Q':  // Uppercase Q
+        case 27:   // ESC
+            *running = false;
+            return;
+
+        case '[':
+            field->speed *= 0.8;
+            if (field->speed < 0.1) field->speed = 0.1;
+            return;
+
+        case ']':
+            field->speed *= 1.2;
+            if (field->speed > 5.0) field->speed = 5.0;
+            return;
+
+        case '\t':  // Tab - cycle effects
+            field->effect_mode = (field->effect_mode + 1) % EFFECT_COUNT;
+            return;
+
+        case 'b':
+        case 'B':
+            // Toggle AI mode for player 2 (legacy support)
+            if (player2->control_mode == CONTROL_KEYBOARD) {
+                player2->control_mode = CONTROL_AI;
+                player2->ai_behavior = AI_ORBITAL;
+            } else if (player2->control_mode == CONTROL_AI) {
+                player2->control_mode = CONTROL_KEYBOARD;
+            }
+            return;
+
+        case 'm':
+        case 'M':
+            // Return to menu
+            state->show_menu = true;
+            return;
+    }
+
+    // Training mode specific controls
+    if (state->mode == MODE_TRAINING && state->training) {
+        switch (key) {
+            case '1':
+                modes_spawn_training_targets(state->training, PATTERN_STATIC_GRID);
+                return;
+            case '2':
+                modes_spawn_training_targets(state->training, PATTERN_MOVING_LINE);
+                return;
+            case '3':
+                modes_spawn_training_targets(state->training, PATTERN_ORBITING);
+                return;
+            case '4':
+                modes_spawn_training_targets(state->training, PATTERN_RANDOM);
+                return;
+            case 'r':
+            case 'R':
+                modes_init_training(state->training);
+                return;
+        }
+    }
+
+    // Player 1 controls (if using keyboard)
+    if (player1->control_mode == CONTROL_KEYBOARD) {
+        switch (key) {
+            case 'w':
+            case 'W':
+                ship_pitch_down(player1, dt);
+                break;
+            case 's':
+            case 'S':
+                ship_pitch_up(player1, dt);
+                break;
+            case 'a':
+            case 'A':
+                ship_yaw_left(player1, dt);
+                break;
+            case 'd':
+            case 'D':
+                ship_yaw_right(player1, dt);
+                break;
+            case 'q':
+                ship_roll_left(player1, dt);
+                break;
+            case 'e':
+            case 'E':
+                ship_roll_right(player1, dt);
+                break;
+            case ' ':
+                ship_thrust(player1, 1.0);
+                break;
+            case 'f':
+            case 'F':
+                if (weapons_can_fire(weapons, player1->player_id)) {
+                    double target_x, target_y, target_z;
+                    calculate_target_point(player1, &target_x, &target_y, &target_z);
+                    weapons_fire(weapons, player1, target_x, target_y, target_z);
+
+                    if (state->mode == MODE_TRAINING && state->training) {
+                        state->training->shots_fired++;
+                    }
+                }
+                break;
+            case 'v':
+            case 'V':
+                ship_toggle_view(player1);
+                break;
+        }
+    }
+
+    // Player 2 controls (if using keyboard and not AI)
+    if (player2->control_mode == CONTROL_KEYBOARD && player2->active) {
+        switch (key) {
+            case KEY_UP:
+                ship_pitch_down(player2, dt);
+                break;
+            case KEY_DOWN:
+                ship_pitch_up(player2, dt);
+                break;
+            case KEY_LEFT:
+                ship_yaw_left(player2, dt);
+                break;
+            case KEY_RIGHT:
+                ship_yaw_right(player2, dt);
+                break;
+            case ',':
+            case '<':
+                ship_roll_left(player2, dt);
+                break;
+            case '.':
+            case '>':
+                ship_roll_right(player2, dt);
+                break;
+            case '\n':
+            case '\r':
+            case KEY_ENTER:
+                ship_thrust(player2, 1.0);
+                break;
+        }
+    }
 }

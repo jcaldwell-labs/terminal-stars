@@ -27,6 +27,9 @@ void render_weapons(FrameBuffer *fb, const WeaponsSystem *weapons, const Camera 
 // Display frame buffer to terminal
 void framebuffer_display(const FrameBuffer *fb);
 
+// Render text string at position with color
+void render_text(FrameBuffer *fb, int x, int y, const char *text, int color);
+
 // Clean up frame buffer
 void framebuffer_destroy(FrameBuffer *fb);
 
