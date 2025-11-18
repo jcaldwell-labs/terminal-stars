@@ -12,13 +12,45 @@ static bool initialized = false;
 // SDL2 IMPLEMENTATION - Full gamepad support
 // ============================================================================
 
+// Check if running in WSL
+static bool is_wsl(void) {
+    FILE *f = fopen("/proc/version", "r");
+    if (!f) return false;
+
+    char buffer[256];
+    bool wsl = false;
+    if (fgets(buffer, sizeof(buffer), f)) {
+        wsl = (strstr(buffer, "microsoft") != NULL || strstr(buffer, "WSL") != NULL);
+    }
+    fclose(f);
+    return wsl;
+}
+
 bool gamepad_init(void) {
     if (initialized) {
         return true;
     }
 
-    // Initialize SDL joystick subsystem
-    if (SDL_InitSubSystem(SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC) < 0) {
+    // Check for environment variable to disable gamepad
+    const char *disable = getenv("TERMINAL_STARS_NO_GAMEPAD");
+    if (disable && disable[0] == '1') {
+        initialized = true;
+        return false;
+    }
+
+    // Check if running in WSL - SDL often hangs in WSL2
+    if (is_wsl()) {
+        // Skip gamepad in WSL to avoid SDL hanging
+        initialized = true;
+        return false;
+    }
+
+    // Set SDL hint to avoid hanging on WSL/environments without proper joystick support
+    SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
+    SDL_SetHint("SDL_JOYSTICK_LINUX_CLASSIC", "0");
+
+    // Initialize SDL joystick subsystem only (skip haptic to avoid WSL issues)
+    if (SDL_InitSubSystem(SDL_INIT_JOYSTICK) < 0) {
         fprintf(stderr, "Failed to initialize SDL joystick: %s\n", SDL_GetError());
         return false;
     }
@@ -41,7 +73,6 @@ bool gamepad_init(void) {
 
     // Open available joysticks (up to MAX_JOYSTICKS)
     int num_joysticks = SDL_NumJoysticks();
-    printf("Found %d joystick(s)\n", num_joysticks);
 
     for (int i = 0; i < num_joysticks && i < MAX_JOYSTICKS; i++) {
         SDL_Joystick *joy = SDL_JoystickOpen(i);
@@ -165,7 +196,7 @@ void gamepad_cleanup(void) {
         joysticks[i].connected = false;
     }
 
-    SDL_QuitSubSystem(SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC);
+    SDL_QuitSubSystem(SDL_INIT_JOYSTICK);
     initialized = false;
 }
 

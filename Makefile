@@ -66,21 +66,29 @@ test: $(TEST_BINS)
 	@echo "=========================================="
 
 clean:
-	rm -rf $(OBJDIR) $(TARGET) $(TESTBINDIR)
+	rm -rf $(OBJDIR) $(TARGET) $(TESTBINDIR) test_joystick
 
 run: $(TARGET)
 	./$(TARGET)
+
+# Joystick test utility
+test_joystick: test_joystick.c
+	$(CC) -o test_joystick test_joystick.c -lSDL2
+
+test-joystick: test_joystick
+	@./test_joystick
 
 help:
 	@echo "Terminal Stars - Build System"
 	@echo "=============================="
 	@echo ""
 	@echo "Available targets:"
-	@echo "  make          - Build the application"
-	@echo "  make run      - Build and run the application"
-	@echo "  make test     - Run all tests"
-	@echo "  make clean    - Clean build artifacts"
-	@echo "  make help     - Show this help message"
+	@echo "  make              - Build the application"
+	@echo "  make run          - Build and run the application"
+	@echo "  make test         - Run all tests"
+	@echo "  make test-joystick- Test SDL2 joystick detection"
+	@echo "  make clean        - Clean build artifacts"
+	@echo "  make help         - Show this help message"
 	@echo ""
 	@echo "Requirements:"
 	@echo "  - GCC compiler (required)"

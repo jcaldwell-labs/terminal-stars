@@ -45,8 +45,7 @@ int main(int argc, char *argv[]) {
 
     // Initialize gamepad system
     if (!gamepad_init()) {
-        fprintf(stderr, "Warning: Failed to initialize gamepad system (joysticks disabled)\n");
-        // Continue anyway - joysticks are optional
+        // Joysticks are optional - continue without them
     }
 
     // Initialize game state
@@ -96,8 +95,7 @@ int main(int argc, char *argv[]) {
         player2.control_mode = CONTROL_KEYBOARD;
     }
 
-    // AI mode toggle (for backward compatibility)
-    bool ai_mode = false;
+    // AI mode removed - now using player2->control_mode directly
 
     // Create weapons system
     WeaponsSystem weapons;
@@ -179,7 +177,7 @@ int main(int argc, char *argv[]) {
         ship_update(&player1, delta_time);
 
         // Update player 2
-        if (ai_mode) {
+        if (player2.control_mode == CONTROL_AI) {
             // AI mode - simple orbital motion
             double orbit_radius = 50.0;
             double orbit_speed = 0.5;  // radians per second
@@ -261,7 +259,7 @@ int main(int argc, char *argv[]) {
         if (!game_state.show_menu) {
             // Draw cockpit HUD
             draw_crosshair(width, height);
-            draw_hud(&player1, &player2, &weapons, width, height, ai_mode, frame_count);
+            draw_hud(&player1, &player2, &weapons, width, height, (player2.control_mode == CONTROL_AI), frame_count);
 
             // Draw advanced HUD elements
             draw_unit_circle_hud(&player1, width, height);
