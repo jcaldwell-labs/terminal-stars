@@ -398,7 +398,7 @@ void modes_init_skeet(SkeetSession *skeet) {
     skeet->pigeons_missed = 0;
     skeet->session_time = 0.0;
     skeet->accuracy = 0.0;
-    skeet->next_launch_time = 1.0;  // Launch first pigeon after 1 second
+    skeet->next_launch_time = SKEET_INITIAL_LAUNCH_DELAY;
     skeet->difficulty = 0;  // Start at easy difficulty
 }
 
@@ -452,7 +452,7 @@ void modes_launch_clay_pigeon(SkeetSession *skeet, LauncherPosition launcher) {
     }
 
     pigeon->age = 0.0;
-    pigeon->lifetime = 5.0;  // 5 seconds before it's considered missed
+    pigeon->lifetime = CLAY_PIGEON_LIFETIME;
     pigeon->points = 10 + (skeet->difficulty * 5);
     pigeon->active = true;
     pigeon->hit = false;
@@ -489,7 +489,7 @@ void modes_update_skeet(SkeetSession *skeet, WeaponsSystem *weapons, double dt) 
         pigeon->age += dt;
 
         // Apply gravity to velocity (simulate arc trajectory)
-        pigeon->velocity_y -= 50.0 * dt;  // Gravity
+        pigeon->velocity_y -= CLAY_PIGEON_GRAVITY * dt;
 
         // Update position
         pigeon->x += pigeon->velocity_x * dt;
@@ -521,10 +521,10 @@ void modes_update_skeet(SkeetSession *skeet, WeaponsSystem *weapons, double dt) 
             double dz = missile->z - pigeon->z;
             double dist = sqrt(dx*dx + dy*dy + dz*dz);
 
-            // Check collision (generous hit radius)
-            if (dist < 30.0) {
+            // Check collision
+            if (dist < CLAY_PIGEON_HIT_RADIUS) {
                 pigeon->hit = true;
-                pigeon->lifetime = pigeon->age + 0.5;  // Show debris for 0.5 seconds
+                pigeon->lifetime = pigeon->age + CLAY_PIGEON_DEBRIS_TIME;
                 missile->active = false;
                 skeet->score += pigeon->points;
                 skeet->pigeons_hit++;
@@ -539,7 +539,7 @@ void modes_update_skeet(SkeetSession *skeet, WeaponsSystem *weapons, double dt) 
     }
 
     // Increase difficulty over time
-    int new_difficulty = (int)(skeet->session_time / 30.0);  // Increase every 30 seconds
+    int new_difficulty = (int)(skeet->session_time / SKEET_DIFFICULTY_INTERVAL);
     if (new_difficulty > 3) new_difficulty = 3;
     skeet->difficulty = new_difficulty;
 }

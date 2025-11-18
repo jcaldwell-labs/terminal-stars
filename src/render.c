@@ -451,6 +451,7 @@ void render_horizon(FrameBuffer *fb) {
     }
 
     // Add some ground shading below horizon
+    // Increment by 3 for sparse dotted pattern to simulate ground texture
     for (int y = horizon_y + 1; y < fb->height; y++) {
         for (int x = 0; x < fb->width; x += 3) {
             int index = y * fb->width + x;
@@ -566,7 +567,7 @@ void render_clay_pigeon(FrameBuffer *fb, const ClayPigeon *pigeon, const Camera 
     // If it's been hit, show debris
     if (pigeon->hit) {
         // Draw debris around the impact point
-        int debris_offsets[][2] = {{-1, -1}, {1, -1}, {-1, 1}, {1, 1}, {0, -1}, {0, 1}, {-1, 0}, {1, 0}};
+        static const int debris_offsets[][2] = {{-1, -1}, {1, -1}, {-1, 1}, {1, 1}, {0, -1}, {0, 1}, {-1, 0}, {1, 0}};
         for (int i = 0; i < 8; i++) {
             int dx = debris_offsets[i][0];
             int dy = debris_offsets[i][1];
