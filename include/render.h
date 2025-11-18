@@ -30,6 +30,15 @@ void framebuffer_display(const FrameBuffer *fb);
 // Render text string at position with color
 void render_text(FrameBuffer *fb, int x, int y, const char *text, int color);
 
+// Render horizon line (for skeet mode)
+void render_horizon(FrameBuffer *fb);
+
+// Render target circle in center of screen (for skeet mode)
+void render_target_circle(FrameBuffer *fb);
+
+// Render clay pigeon in 3D space
+void render_clay_pigeon(FrameBuffer *fb, const ClayPigeon *pigeon, const Camera *camera, double zoom);
+
 // Clean up frame buffer
 void framebuffer_destroy(FrameBuffer *fb);
 

@@ -433,6 +433,154 @@ void render_text(FrameBuffer *fb, int x, int y, const char *text, int color) {
     }
 }
 
+void render_horizon(FrameBuffer *fb) {
+    if (!fb) {
+        return;
+    }
+
+    // Draw horizon line at 2/3 down the screen
+    int horizon_y = (fb->height * 2) / 3;
+
+    // Draw the horizon line
+    for (int x = 0; x < fb->width; x++) {
+        if (horizon_y >= 0 && horizon_y < fb->height) {
+            int index = horizon_y * fb->width + x;
+            fb->buffer[index] = '=';
+            fb->colors[index] = COLOR_PAIR(6);  // Cyan
+        }
+    }
+
+    // Add some ground shading below horizon
+    for (int y = horizon_y + 1; y < fb->height; y++) {
+        for (int x = 0; x < fb->width; x += 3) {
+            int index = y * fb->width + x;
+            fb->buffer[index] = '.';
+            fb->colors[index] = COLOR_PAIR(2);  // Green-ish ground
+        }
+    }
+}
+
+void render_target_circle(FrameBuffer *fb) {
+    if (!fb) {
+        return;
+    }
+
+    int center_x = fb->width / 2;
+    int center_y = fb->height / 2;
+    int radius = 3;  // Small targeting reticle
+
+    // Draw circle using basic circle algorithm
+    for (int i = 0; i < 32; i++) {
+        double angle = (i * 2.0 * M_PI) / 32.0;
+        int x = center_x + (int)(cos(angle) * radius);
+        int y = center_y + (int)(sin(angle) * radius * 0.5);  // Half height for terminal aspect
+
+        if (x >= 0 && x < fb->width && y >= 0 && y < fb->height) {
+            int index = y * fb->width + x;
+            fb->buffer[index] = 'o';
+            fb->colors[index] = COLOR_PAIR(3);  // Yellow
+        }
+    }
+
+    // Draw crosshairs
+    for (int i = -4; i <= 4; i++) {
+        // Horizontal line
+        int hx = center_x + i;
+        if (hx >= 0 && hx < fb->width && center_y >= 0 && center_y < fb->height) {
+            int index = center_y * fb->width + hx;
+            fb->buffer[index] = '-';
+            fb->colors[index] = COLOR_PAIR(3);
+        }
+
+        // Vertical line
+        int vy = center_y + i;
+        if (center_x >= 0 && center_x < fb->width && vy >= 0 && vy < fb->height) {
+            int index = vy * fb->width + center_x;
+            fb->buffer[index] = '|';
+            fb->colors[index] = COLOR_PAIR(3);
+        }
+    }
+
+    // Center dot
+    if (center_x >= 0 && center_x < fb->width && center_y >= 0 && center_y < fb->height) {
+        int index = center_y * fb->width + center_x;
+        fb->buffer[index] = '+';
+        fb->colors[index] = COLOR_PAIR(1);  // Bright white
+    }
+}
+
+void render_clay_pigeon(FrameBuffer *fb, const ClayPigeon *pigeon, const Camera *camera, double zoom) {
+    if (!fb || !pigeon || !camera || !pigeon->active) {
+        return;
+    }
+
+    // Transform pigeon position to camera space
+    double rel_x = pigeon->x - camera->pos_x;
+    double rel_y = pigeon->y - camera->pos_y;
+    double rel_z = pigeon->z - camera->pos_z;
+
+    // Apply camera yaw rotation (around Y axis)
+    double cos_yaw = cos(-camera->yaw);
+    double sin_yaw = sin(-camera->yaw);
+    double view_x = rel_x * cos_yaw - rel_z * sin_yaw;
+    double view_z = rel_x * sin_yaw + rel_z * cos_yaw;
+
+    // Apply pitch rotation (around X axis)
+    double cos_pitch = cos(-camera->pitch);
+    double sin_pitch = sin(-camera->pitch);
+    double temp_z = view_z * cos_pitch - rel_y * sin_pitch;
+    double view_y = view_z * sin_pitch + rel_y * cos_pitch;
+    view_z = temp_z;
+
+    // Apply roll rotation (around Z axis)
+    double cos_roll = cos(-camera->roll);
+    double sin_roll = sin(-camera->roll);
+    double temp_x = view_x * cos_roll - view_y * sin_roll;
+    view_y = view_x * sin_roll + view_y * cos_roll;
+    view_x = temp_x;
+
+    // Skip if behind camera
+    if (view_z <= 0.1) {
+        return;
+    }
+
+    // Project to 2D screen coordinates
+    int center_x = fb->width / 2;
+    int center_y = fb->height / 2;
+
+    double scale = zoom / view_z;
+    int screen_x = center_x + (int)(view_x * scale);
+    int screen_y = center_y + (int)(view_y * scale);
+
+    // Check screen bounds
+    if (screen_x < 0 || screen_x >= fb->width ||
+        screen_y < 0 || screen_y >= fb->height) {
+        return;
+    }
+
+    // Render clay pigeon
+    int index = screen_y * fb->width + screen_x;
+    fb->buffer[index] = pigeon->hit ? 'X' : pigeon->character;
+    fb->colors[index] = pigeon->color;
+
+    // If it's been hit, show debris
+    if (pigeon->hit) {
+        // Draw debris around the impact point
+        int debris_offsets[][2] = {{-1, -1}, {1, -1}, {-1, 1}, {1, 1}, {0, -1}, {0, 1}, {-1, 0}, {1, 0}};
+        for (int i = 0; i < 8; i++) {
+            int dx = debris_offsets[i][0];
+            int dy = debris_offsets[i][1];
+            int px = screen_x + dx;
+            int py = screen_y + dy;
+            if (px >= 0 && px < fb->width && py >= 0 && py < fb->height) {
+                int idx = py * fb->width + px;
+                fb->buffer[idx] = '*';
+                fb->colors[idx] = COLOR_PAIR(1);  // White debris
+            }
+        }
+    }
+}
+
 void framebuffer_destroy(FrameBuffer *fb) {
     if (fb) {
         free(fb->buffer);

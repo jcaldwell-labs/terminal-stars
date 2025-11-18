@@ -56,6 +56,10 @@ int main(int argc, char *argv[]) {
     TrainingSession training;
     game_state.training = &training;
 
+    // Skeet session (allocated when needed)
+    SkeetSession skeet;
+    game_state.skeet = &skeet;
+
     // Create starfield
     Starfield *field = starfield_create(DEFAULT_STAR_COUNT);
     if (!field) {
@@ -145,6 +149,8 @@ int main(int argc, char *argv[]) {
 
                     if (game_state.mode == MODE_TRAINING) {
                         modes_init_training(&training);
+                    } else if (game_state.mode == MODE_SKEET) {
+                        modes_init_skeet(&skeet);
                     }
                 }
             }
@@ -159,8 +165,8 @@ int main(int argc, char *argv[]) {
             if (player1.control_mode == CONTROL_JOYSTICK && player1.joystick_id >= 0) {
                 JoystickState *joy1 = gamepad_get_state(player1.joystick_id);
                 if (joy1) {
-                    process_joystick_input(&player1, joy1, &weapons, delta_time,
-                                          game_state.mode == MODE_TRAINING ? &training : NULL);
+                    TrainingSession *training_ptr = (game_state.mode == MODE_TRAINING) ? &training : NULL;
+                    process_joystick_input(&player1, joy1, &weapons, delta_time, training_ptr);
                 }
             }
 
@@ -210,6 +216,11 @@ int main(int argc, char *argv[]) {
             modes_update_training(&training, &weapons, delta_time);
         }
 
+        // Update skeet mode if active
+        if (game_state.mode == MODE_SKEET) {
+            modes_update_skeet(&skeet, &weapons, delta_time);
+        }
+
         // Render
         framebuffer_clear(fb);
 
@@ -217,12 +228,22 @@ int main(int argc, char *argv[]) {
             // Show menu instead of game
             modes_render_menu(fb, game_state.menu_selection);
         } else {
-            // Normal game rendering
-            render_starfield(fb, field);
+            // Render based on game mode
+            if (game_state.mode == MODE_SKEET) {
+                // Skeet mode: render horizon instead of starfield
+                render_horizon(fb);
+                render_target_circle(fb);
 
-            // Render player 2 ship in 3D space (if active)
-            if (player2.active) {
-                render_ship_3d(fb, &player2, &field->camera, field->zoom);
+                // Render clay pigeons
+                modes_render_clay_pigeons(fb, &skeet, &field->camera, field->zoom);
+            } else {
+                // Normal game rendering with starfield
+                render_starfield(fb, field);
+
+                // Render player 2 ship in 3D space (if active)
+                if (player2.active) {
+                    render_ship_3d(fb, &player2, &field->camera, field->zoom);
+                }
             }
 
             // Render training targets if in training mode
@@ -272,6 +293,11 @@ int main(int argc, char *argv[]) {
             // Draw training HUD if in training mode
             if (game_state.mode == MODE_TRAINING) {
                 modes_render_training_hud(fb, &training);
+            }
+
+            // Draw skeet HUD if in skeet mode
+            if (game_state.mode == MODE_SKEET) {
+                modes_render_skeet_hud(fb, &skeet);
             }
         }
 
