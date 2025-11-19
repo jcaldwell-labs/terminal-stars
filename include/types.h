@@ -63,7 +63,8 @@ typedef enum {
     MODE_SINGLE_PLAYER,    // Single player vs AI
     MODE_DUAL_PLAYER,      // Two player competitive
     MODE_COOP,             // Two player cooperative
-    MODE_TRAINING          // Training simulator mode
+    MODE_TRAINING,         // Training simulator mode
+    MODE_SKEET             // Skeet shooting mode
 } GameMode;
 
 // Player control mode
@@ -226,6 +227,62 @@ typedef struct {
 } TrainingSession;
 
 // ============================================================================
+// SKEET SHOOTING MODE TYPES
+// ============================================================================
+
+#define MAX_CLAY_PIGEONS 30
+
+// Skeet mode physics and gameplay constants
+#define CLAY_PIGEON_HIT_RADIUS 30.0      // Collision radius for hits (units)
+#define CLAY_PIGEON_GRAVITY 50.0         // Gravity acceleration (units/s²)
+#define CLAY_PIGEON_LIFETIME 5.0         // Time before pigeon expires (seconds)
+#define CLAY_PIGEON_DEBRIS_TIME 0.5      // How long debris is shown (seconds)
+#define SKEET_DIFFICULTY_INTERVAL 30.0   // Time between difficulty increases (seconds)
+#define SKEET_INITIAL_LAUNCH_DELAY 2.5   // Initial launch delay aligned with easy difficulty
+
+// Clay pigeon - target that flies through the air in an arc
+typedef struct {
+    // Position in 3D space
+    double x, y, z;
+
+    // Velocity
+    double velocity_x;
+    double velocity_y;
+    double velocity_z;
+
+    // Physics
+    double age;             // Time since launch
+    double lifetime;        // Time until self-destruct (missed)
+    int points;             // Points awarded for hit
+    bool active;            // Is this pigeon active
+    bool hit;               // Was it hit by the player
+
+    // Visual
+    char character;         // Display character
+    int color;              // Color pair
+} ClayPigeon;
+
+// Launcher position - where clay pigeons are launched from
+typedef enum {
+    LAUNCHER_BOTTOM_LEFT,
+    LAUNCHER_BOTTOM_RIGHT,
+    LAUNCHER_BOTTOM_CENTER
+} LauncherPosition;
+
+// Skeet session data
+typedef struct {
+    ClayPigeon pigeons[MAX_CLAY_PIGEONS];
+    int score;              // Player's score
+    int pigeons_hit;        // Number of pigeons hit
+    int pigeons_launched;   // Total pigeons launched
+    int pigeons_missed;     // Pigeons that flew away
+    double session_time;    // Time elapsed in session
+    double accuracy;        // Hit accuracy percentage
+    double next_launch_time; // Time until next pigeon launch
+    int difficulty;         // 0-3 difficulty level
+} SkeetSession;
+
+// ============================================================================
 // GAME STATE
 // ============================================================================
 
@@ -236,6 +293,7 @@ typedef struct {
     bool show_menu;         // Show mode selection menu
     int menu_selection;     // Current menu selection
     TrainingSession *training;  // Training session data (if in training mode)
+    SkeetSession *skeet;    // Skeet session data (if in skeet mode)
 } GameState;
 
 #endif // TYPES_H

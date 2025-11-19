@@ -242,7 +242,7 @@ void modes_render_menu(FrameBuffer *fb, int selection) {
 
     // Calculate menu position with bounds checking for small terminals
     int menu_x = fb->width / 2 - 20;
-    int menu_y = fb->height / 2 - 5;
+    int menu_y = fb->height / 2 - 6;
 
     // Ensure menu doesn't render at negative coordinates
     if (menu_x < 5) menu_x = 5;
@@ -257,10 +257,11 @@ void modes_render_menu(FrameBuffer *fb, int selection) {
         "1. Single Player (vs AI)",
         "2. Dual Player (Competitive)",
         "3. Co-op Mode (Team up)",
-        "4. Training Simulator"
+        "4. Training Simulator",
+        "5. Skeet Shooting"
     };
 
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
         int color = (i == selection) ? COLOR_PAIR(2) : COLOR_PAIR(7);
         char buf[100];
         snprintf(buf, sizeof(buf), "%s %s",
@@ -269,7 +270,7 @@ void modes_render_menu(FrameBuffer *fb, int selection) {
         render_text(fb, menu_x, menu_y + i, buf, color);
     }
 
-    menu_y += 6;
+    menu_y += 7;
     int help_x = (menu_x >= 5) ? menu_x - 5 : menu_x;
     render_text(fb, help_x, menu_y, "Arrow keys to select, Enter to start", COLOR_PAIR(6));
 }
@@ -280,14 +281,14 @@ bool modes_handle_menu_input(int key, int *selection, GameMode *mode) {
         case 'w':
         case 'W':
             (*selection)--;
-            if (*selection < 0) *selection = 3;
+            if (*selection < 0) *selection = 4;
             return false;
 
         case KEY_DOWN:
         case 's':
         case 'S':
             (*selection)++;
-            if (*selection > 3) *selection = 0;
+            if (*selection > 4) *selection = 0;
             return false;
 
         case '\n':
@@ -299,6 +300,7 @@ bool modes_handle_menu_input(int key, int *selection, GameMode *mode) {
                 case 1: *mode = MODE_DUAL_PLAYER; break;
                 case 2: *mode = MODE_COOP; break;
                 case 3: *mode = MODE_TRAINING; break;
+                case 4: *mode = MODE_SKEET; break;
             }
             return true; // Mode selected
 
@@ -306,6 +308,7 @@ bool modes_handle_menu_input(int key, int *selection, GameMode *mode) {
         case '2': *mode = MODE_DUAL_PLAYER; return true;
         case '3': *mode = MODE_COOP; return true;
         case '4': *mode = MODE_TRAINING; return true;
+        case '5': *mode = MODE_SKEET; return true;
     }
 
     return false;
@@ -363,5 +366,241 @@ void modes_setup_players(GameState *state, Ship3D *player1, Ship3D *player2) {
             player2->active = false; // No second player in training
             player2->control_mode = CONTROL_INACTIVE;
             break;
+
+        case MODE_SKEET:
+            player1->active = true;
+            // Preserve joystick assignment if already set
+            if (player1->control_mode != CONTROL_JOYSTICK) {
+                player1->control_mode = CONTROL_KEYBOARD;
+            }
+            player2->active = false; // No second player in skeet mode
+            player2->control_mode = CONTROL_INACTIVE;
+            break;
+    }
+}
+
+// ============================================================================
+// SKEET MODE IMPLEMENTATION
+// ============================================================================
+
+void modes_init_skeet(SkeetSession *skeet) {
+    if (!skeet) return;
+
+    // Clear all clay pigeons
+    for (int i = 0; i < MAX_CLAY_PIGEONS; i++) {
+        skeet->pigeons[i].active = false;
+        skeet->pigeons[i].hit = false;
+    }
+
+    skeet->score = 0;
+    skeet->pigeons_hit = 0;
+    skeet->pigeons_launched = 0;
+    skeet->pigeons_missed = 0;
+    skeet->session_time = 0.0;
+    skeet->accuracy = 0.0;
+    skeet->next_launch_time = SKEET_INITIAL_LAUNCH_DELAY;
+    skeet->difficulty = 0;  // Start at easy difficulty
+}
+
+void modes_launch_clay_pigeon(SkeetSession *skeet, LauncherPosition launcher) {
+    if (!skeet) return;
+
+    // Find an inactive pigeon slot
+    int slot = -1;
+    for (int i = 0; i < MAX_CLAY_PIGEONS; i++) {
+        if (!skeet->pigeons[i].active) {
+            slot = i;
+            break;
+        }
+    }
+
+    if (slot == -1) return;  // No available slots
+
+    ClayPigeon *pigeon = &skeet->pigeons[slot];
+
+    // Set launch position and velocity based on launcher
+    switch (launcher) {
+        case LAUNCHER_BOTTOM_LEFT:
+            pigeon->x = -200.0;
+            pigeon->y = -100.0;
+            pigeon->z = 300.0;
+            // Arc toward right and up
+            pigeon->velocity_x = 80.0 + (rand() % 40);
+            pigeon->velocity_y = 120.0 + (rand() % 40);
+            pigeon->velocity_z = 50.0 + (rand() % 30);
+            break;
+
+        case LAUNCHER_BOTTOM_RIGHT:
+            pigeon->x = 200.0;
+            pigeon->y = -100.0;
+            pigeon->z = 300.0;
+            // Arc toward left and up
+            pigeon->velocity_x = -80.0 - (rand() % 40);
+            pigeon->velocity_y = 120.0 + (rand() % 40);
+            pigeon->velocity_z = 50.0 + (rand() % 30);
+            break;
+
+        case LAUNCHER_BOTTOM_CENTER:
+            pigeon->x = 0.0;
+            pigeon->y = -120.0;
+            pigeon->z = 200.0;
+            // Arc straight up and forward
+            pigeon->velocity_x = (rand() % 40) - 20;
+            pigeon->velocity_y = 140.0 + (rand() % 40);
+            pigeon->velocity_z = 60.0 + (rand() % 30);
+            break;
+    }
+
+    pigeon->age = 0.0;
+    pigeon->lifetime = CLAY_PIGEON_LIFETIME;
+    pigeon->points = 10 + (skeet->difficulty * 5);
+    pigeon->active = true;
+    pigeon->hit = false;
+    pigeon->character = 'O';
+    pigeon->color = COLOR_PAIR(4);  // Yellow
+
+    skeet->pigeons_launched++;
+}
+
+void modes_update_skeet(SkeetSession *skeet, WeaponsSystem *weapons, double dt) {
+    if (!skeet) return;
+
+    skeet->session_time += dt;
+
+    // Update launch timer
+    skeet->next_launch_time -= dt;
+    if (skeet->next_launch_time <= 0.0) {
+        // Launch a new pigeon from random launcher
+        LauncherPosition launchers[] = {LAUNCHER_BOTTOM_LEFT, LAUNCHER_BOTTOM_RIGHT, LAUNCHER_BOTTOM_CENTER};
+        int launcher_idx = rand() % 3;
+        modes_launch_clay_pigeon(skeet, launchers[launcher_idx]);
+
+        // Set next launch time based on difficulty
+        double base_interval = 2.5 - (skeet->difficulty * 0.3);
+        if (base_interval < 0.8) base_interval = 0.8;
+        skeet->next_launch_time = base_interval + ((rand() % 100) / 100.0);
+    }
+
+    // Update clay pigeons
+    for (int i = 0; i < MAX_CLAY_PIGEONS; i++) {
+        ClayPigeon *pigeon = &skeet->pigeons[i];
+        if (!pigeon->active) continue;
+
+        pigeon->age += dt;
+
+        // Apply gravity to velocity (simulate arc trajectory)
+        pigeon->velocity_y -= CLAY_PIGEON_GRAVITY * dt;
+
+        // Update position
+        pigeon->x += pigeon->velocity_x * dt;
+        pigeon->y += pigeon->velocity_y * dt;
+        pigeon->z += pigeon->velocity_z * dt;
+
+        // Check if pigeon has expired
+        if (pigeon->age > pigeon->lifetime) {
+            if (!pigeon->hit) {
+                skeet->pigeons_missed++;
+            }
+            pigeon->active = false;
+            continue;
+        }
+
+        // If already hit, just let it fall
+        if (pigeon->hit) {
+            continue;
+        }
+
+        // Check missile collisions
+        for (int m = 0; m < MAX_MISSILES; m++) {
+            Missile *missile = &weapons->missiles[m];
+            if (!missile->active) continue;
+
+            // Calculate distance between missile and pigeon
+            double dx = missile->x - pigeon->x;
+            double dy = missile->y - pigeon->y;
+            double dz = missile->z - pigeon->z;
+            double dist = sqrt(dx*dx + dy*dy + dz*dz);
+
+            // Check collision (generous hit radius)
+            if (dist < CLAY_PIGEON_HIT_RADIUS) {
+                pigeon->hit = true;
+                pigeon->lifetime = pigeon->age + CLAY_PIGEON_DEBRIS_TIME;
+                missile->active = false;
+                skeet->score += pigeon->points;
+                skeet->pigeons_hit++;
+                break;
+            }
+        }
+    }
+
+    // Update accuracy
+    if (skeet->pigeons_launched > 0) {
+        skeet->accuracy = (skeet->pigeons_hit * 100.0) / skeet->pigeons_launched;
+    }
+
+    // Increase difficulty over time
+    int new_difficulty = (int)(skeet->session_time / SKEET_DIFFICULTY_INTERVAL);
+    if (new_difficulty > 3) new_difficulty = 3;
+    skeet->difficulty = new_difficulty;
+}
+
+void modes_render_skeet_hud(FrameBuffer *fb, SkeetSession *skeet) {
+    if (!fb || !skeet) return;
+
+    int y = 1;
+    char buf[100];
+
+    // Draw skeet HUD in top-right corner
+    int x = fb->width - 35;
+    if (x < 0) x = 0;
+
+    snprintf(buf, sizeof(buf), "=== SKEET SHOOTING ===");
+    render_text(fb, x, y++, buf, COLOR_PAIR(3));
+
+    y++;
+    snprintf(buf, sizeof(buf), "Score:      %d", skeet->score);
+    render_text(fb, x, y++, buf, COLOR_PAIR(7));
+
+    snprintf(buf, sizeof(buf), "Hit:        %d", skeet->pigeons_hit);
+    render_text(fb, x, y++, buf, COLOR_PAIR(2));
+
+    snprintf(buf, sizeof(buf), "Missed:     %d", skeet->pigeons_missed);
+    render_text(fb, x, y++, buf, COLOR_PAIR(1));
+
+    snprintf(buf, sizeof(buf), "Accuracy:   %.1f%%", skeet->accuracy);
+    render_text(fb, x, y++, buf, COLOR_PAIR(skeet->accuracy > 50 ? 2 : 1));
+
+    snprintf(buf, sizeof(buf), "Time:       %.1fs", skeet->session_time);
+    render_text(fb, x, y++, buf, COLOR_PAIR(7));
+
+    const char *diff_names[] = {"Easy", "Medium", "Hard", "Expert"};
+    snprintf(buf, sizeof(buf), "Difficulty: %s", diff_names[skeet->difficulty]);
+    render_text(fb, x, y++, buf, COLOR_PAIR(3 + skeet->difficulty));
+
+    // Count active pigeons
+    int active_count = 0;
+    for (int i = 0; i < MAX_CLAY_PIGEONS; i++) {
+        if (skeet->pigeons[i].active) active_count++;
+    }
+
+    y++;
+    snprintf(buf, sizeof(buf), "In Air:     %d", active_count);
+    render_text(fb, x, y++, buf, COLOR_PAIR(active_count > 5 ? 1 : 7));
+
+    // Instructions
+    y++;
+    render_text(fb, x, y++, "Controls:", COLOR_PAIR(6));
+    render_text(fb, x, y++, "F: Fire", COLOR_PAIR(7));
+    render_text(fb, x, y++, "M: Menu", COLOR_PAIR(7));
+}
+
+void modes_render_clay_pigeons(FrameBuffer *fb, SkeetSession *skeet, const Camera *camera, double zoom) {
+    if (!fb || !skeet || !camera) return;
+
+    // Render all active clay pigeons
+    for (int i = 0; i < MAX_CLAY_PIGEONS; i++) {
+        if (skeet->pigeons[i].active) {
+            render_clay_pigeon(fb, &skeet->pigeons[i], camera, zoom);
+        }
     }
 }

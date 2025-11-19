@@ -36,4 +36,23 @@ typedef enum {
     PATTERN_RANDOM           // Random positions
 } TargetPattern;
 
+// ============================================================================
+// SKEET MODE FUNCTIONS
+// ============================================================================
+
+// Initialize skeet session
+void modes_init_skeet(SkeetSession *skeet);
+
+// Update skeet session - spawn pigeons, check collisions
+void modes_update_skeet(SkeetSession *skeet, WeaponsSystem *weapons, double dt);
+
+// Render skeet HUD overlay
+void modes_render_skeet_hud(FrameBuffer *fb, SkeetSession *skeet);
+
+// Render all clay pigeons
+void modes_render_clay_pigeons(FrameBuffer *fb, SkeetSession *skeet, const Camera *camera, double zoom);
+
+// Launch a clay pigeon from specified launcher position
+void modes_launch_clay_pigeon(SkeetSession *skeet, LauncherPosition launcher);
+
 #endif // MODES_H
