@@ -30,9 +30,12 @@ bool terminal_init(void) {
 
         // Initialize color pairs for different star brightness
         init_pair(1, COLOR_WHITE, -1);   // Bright stars
-        init_pair(2, COLOR_CYAN, -1);    // Medium stars
-        init_pair(3, COLOR_BLUE, -1);    // Dim stars
-        init_pair(4, COLOR_YELLOW, -1);  // Very bright stars
+        init_pair(2, COLOR_CYAN, -1);    // Medium stars / Ground
+        init_pair(3, COLOR_BLUE, -1);    // Dim stars / UI headers
+        init_pair(4, COLOR_YELLOW, -1);  // Very bright stars / Clay pigeons
+        init_pair(5, COLOR_MAGENTA, -1); // Moving targets
+        init_pair(6, COLOR_CYAN, -1);    // Horizon line / UI hints
+        init_pair(7, COLOR_WHITE, -1);   // HUD text
     }
 
     // Set up resize signal handler

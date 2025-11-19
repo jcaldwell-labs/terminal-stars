@@ -451,12 +451,12 @@ void render_horizon(FrameBuffer *fb) {
     }
 
     // Add some ground shading below horizon
-    // Increment by 3 for sparse dotted pattern to simulate ground texture
+    // Note: x += 3 creates a sparse dot pattern for visual texture without filling entire screen
     for (int y = horizon_y + 1; y < fb->height; y++) {
         for (int x = 0; x < fb->width; x += 3) {
             int index = y * fb->width + x;
             fb->buffer[index] = '.';
-            fb->colors[index] = COLOR_PAIR(2);  // Green-ish ground
+            fb->colors[index] = COLOR_PAIR(2);  // Cyan ground texture
         }
     }
 }

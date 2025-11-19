@@ -457,7 +457,7 @@ void modes_launch_clay_pigeon(SkeetSession *skeet, LauncherPosition launcher) {
     pigeon->active = true;
     pigeon->hit = false;
     pigeon->character = 'O';
-    pigeon->color = COLOR_PAIR(4);  // Magenta
+    pigeon->color = COLOR_PAIR(4);  // Yellow
 
     skeet->pigeons_launched++;
 }
@@ -521,7 +521,7 @@ void modes_update_skeet(SkeetSession *skeet, WeaponsSystem *weapons, double dt) 
             double dz = missile->z - pigeon->z;
             double dist = sqrt(dx*dx + dy*dy + dz*dz);
 
-            // Check collision
+            // Check collision (generous hit radius)
             if (dist < CLAY_PIGEON_HIT_RADIUS) {
                 pigeon->hit = true;
                 pigeon->lifetime = pigeon->age + CLAY_PIGEON_DEBRIS_TIME;

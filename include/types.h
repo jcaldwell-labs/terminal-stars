@@ -232,13 +232,13 @@ typedef struct {
 
 #define MAX_CLAY_PIGEONS 30
 
-// Skeet mode physics constants
-#define CLAY_PIGEON_HIT_RADIUS 30.0
-#define CLAY_PIGEON_GRAVITY 50.0
-#define CLAY_PIGEON_LIFETIME 5.0
-#define CLAY_PIGEON_DEBRIS_TIME 0.5
-#define SKEET_DIFFICULTY_INTERVAL 30.0
-#define SKEET_INITIAL_LAUNCH_DELAY 2.0
+// Skeet mode physics and gameplay constants
+#define CLAY_PIGEON_HIT_RADIUS 30.0      // Collision radius for hits (units)
+#define CLAY_PIGEON_GRAVITY 50.0         // Gravity acceleration (units/s²)
+#define CLAY_PIGEON_LIFETIME 5.0         // Time before pigeon expires (seconds)
+#define CLAY_PIGEON_DEBRIS_TIME 0.5      // How long debris is shown (seconds)
+#define SKEET_DIFFICULTY_INTERVAL 30.0   // Time between difficulty increases (seconds)
+#define SKEET_INITIAL_LAUNCH_DELAY 2.5   // Initial launch delay aligned with easy difficulty
 
 // Clay pigeon - target that flies through the air in an arc
 typedef struct {
