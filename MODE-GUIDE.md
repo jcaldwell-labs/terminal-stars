@@ -150,8 +150,8 @@ Enter    - Fire
 
 ### Joystick Support
 If gamepads are detected:
-- **Joystick 1** ’ Player 1
-- **Joystick 2** ’ Player 2
+- **Joystick 1** -> Player 1
+- **Joystick 2** -> Player 2
 - Automatic assignment on startup
 
 ### Tactical Considerations
@@ -274,7 +274,7 @@ Reset: R
 
 ### Performance Metrics
 - **Score**: Points earned (10 per target)
-- **Accuracy**: Hits / Shots fired × 100%
+- **Accuracy**: Hits / Shots fired ï¿½ 100%
 - **Efficiency**: How few shots to clear pattern
 - **Time**: Session duration
 
@@ -350,7 +350,7 @@ Velocity: 100-140 units/s (randomized)
 ```
 
 ### Clay Pigeon Physics
-- **Gravity**: 50 units/s² downward acceleration
+- **Gravity**: 50 units/sï¿½ downward acceleration
 - **Flight Time**: 5 seconds before auto-miss
 - **Hit Radius**: 30 units (generous for playability)
 - **Character**: 'O' when active, 'X' when hit
@@ -412,8 +412,8 @@ M: Menu
 #### Lead Shooting
 ```
 Pigeon moving left to right:
-   O          Aim here •
-     •         Not here
+   O ï¿½         Aim here ï¿½
+     ï¿½         Not here
    Current    Predicted
 ```
 
@@ -503,7 +503,7 @@ Q          - Roll left (bank left)
 E          - Roll right (bank right)
 Space      - Thrust
 F          - Fire missiles
-V          - Toggle camera view (Cockpit ” Chase)
+V          - Toggle camera view (Cockpit ï¿½ Chase)
 ```
 
 #### Player 2
@@ -538,11 +538,11 @@ B          - Toggle AI mode for Player 2
 #### Standard Gamepad Layout
 ```
 Left Stick    - Pitch and Yaw
-  Up/Down       ’ Pitch
-  Left/Right    ’ Yaw
+  Up/Down       -> Pitch
+  Left/Right    -> Yaw
 
 Right Stick   - Roll
-  Left/Right    ’ Roll
+  Left/Right    -> Roll
 
 Left Bumper (LB)  - Roll left (alternative)
 Right Bumper (RB) - Roll right (alternative)
@@ -558,7 +558,7 @@ Start Button       - Menu access
 - **Dead Zone**: 15% to prevent drift
 - **Analog Control**: Proportional to stick position
 - **Rumble**: Vibration on weapon fire
-- **Auto-Assign**: Joystick 1 ’ Player 1, Joystick 2 ’ Player 2
+- **Auto-Assign**: Joystick 1 -> Player 1, Joystick 2 -> Player 2
 
 ### Camera Controls
 ```
@@ -618,7 +618,7 @@ Movement is RELATIVE to ship orientation!
 **Immelmann Turn**:
 ```
 1. Pitch up into loop (S)
-2. At top, roll 180° (Q or E)
+2. At top, roll 180ï¿½ (Q or E)
 3. Level out going opposite direction
 ```
 
