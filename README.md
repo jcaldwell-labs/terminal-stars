@@ -3,19 +3,20 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Language: C](https://img.shields.io/badge/language-C-blue.svg)](https://en.wikipedia.org/wiki/C_(programming_language))
 
-A terminal-based 3D space combat simulator written in C using frame buffering. Features 6-DOF flight physics, weapons systems, multiple game modes, and USB joystick support.
+A terminal-based 3D space combat simulator written in C using frame buffering. Features 6-DOF flight physics, weapons systems, five game modes including skeet shooting, and USB joystick support.
 
 ## Overview
 
-Terminal Stars provides smooth, 60fps starfield animations directly in your terminal. Similar to the `boxes-live` project, it uses efficient frame buffering and ncurses for terminal manipulation to create various mesmerizing starfield effects.
+Terminal Stars provides smooth, 60fps space combat and flight simulation directly in your terminal. Similar to the `boxes-live` project, it uses efficient frame buffering and ncurses for terminal manipulation to create immersive 3D flight experiences with multiple gameplay modes.
 
 ## Features
 
-- **🎮 Four Game Modes**:
-  - **Single Player**: Fight against intelligent AI opponents
-  - **Dual Player**: Competitive two-player combat
-  - **Co-op Mode**: Team up with a friend
-  - **Training Simulator**: Practice flight and weapons skills
+- **🎮 Five Game Modes**:
+  - **Single Player**: Fight against AI opponent with orbital behavior
+  - **Dual Player**: Competitive two-player space combat
+  - **Co-op Mode**: Team up with a friend for formation flying
+  - **Training Simulator**: Practice flight and weapons with target patterns
+  - **Skeet Shooting**: Clay pigeon shooting with realistic ballistic physics
 
 - **🕹️ USB Joystick Support**:
   - Supports up to 2 USB gamepads/joysticks simultaneously
@@ -42,10 +43,11 @@ Terminal Stars provides smooth, 60fps starfield animations directly in your term
   - Four difficulty patterns to practice
   - Real-time performance feedback
 
-- **🌟 Multiple Starfield Effects**:
-  - Linear, Spiral, Warp, Tunnel, Explode, Wave, Torus
-  - Real-time effect switching
-  - Adjustable speed parameters
+- **🌟 Visual Effects**:
+  - **Six Starfield Effects**: Linear, Spiral, Warp, Tunnel, Explode, Wave
+  - **Horizon Rendering**: Ground and sky visualization (Skeet mode)
+  - Real-time effect switching with Tab key
+  - Adjustable speed parameters with [ and ] keys
 
 - **📊 Advanced HUD**:
   - 6-DOF attitude indicator
@@ -131,16 +133,19 @@ make help         # Show all available targets
 - **X Button**: Fire weapon
 - **Y Button**: Toggle camera view
 
-See [FEATURES.md](FEATURES.md) for complete documentation.
+See [FEATURES.md](FEATURES.md) for complete feature documentation and [MODE-GUIDE.md](MODE-GUIDE.md) for detailed gameplay guides for each mode.
 
 ## Project Status
 
 ✅ **Fully Functional** - All core features implemented including:
-- 3D flight physics and rendering
-- Weapons systems
-- Four game modes
-- USB joystick support
-- Training simulator
+- 3D flight physics and rendering with 6-DOF
+- Dual-missile weapons system with explosions
+- Five distinct game modes
+- USB joystick support (up to 2 controllers)
+- Training simulator with four target patterns
+- Skeet shooting mode with realistic ballistics
+- Advanced HUD with radar and enemy tracking
+- Horizon rendering for ground-based modes
 
 ## Project Structure
 
@@ -165,6 +170,7 @@ terminal-stars/
 ├── tests/               # Unit tests
 ├── demos/               # Demo videos
 ├── FEATURES.md          # Detailed feature documentation
+├── MODE-GUIDE.md        # Complete gameplay guide for all modes
 ├── CLAUDE.md            # Development guidelines
 └── Makefile             # Build configuration
 ```
