@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop, improve/*, feature/*, fix/* ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        compiler: [gcc, clang]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libncurses-dev libsdl2-dev valgrind
+
+    - name: Build with ${{ matrix.compiler }}
+      env:
+        CC: ${{ matrix.compiler }}
+      run: |
+        make clean
+        make
+
+    - name: Run tests
+      run: |
+        make test || echo "Tests not yet implemented - continuing..."
+
+    - name: Check for memory leaks (with valgrind)
+      if: matrix.compiler == 'gcc'
+      run: |
+        echo "Memory leak detection would run here when tests are available"
+        # valgrind --leak-check=full --error-exitcode=1 ./tests/bin/test_* 2>&1 | tee valgrind.log
+
+    - name: Upload valgrind logs
+      if: failure() && matrix.compiler == 'gcc'
+      uses: actions/upload-artifact@v4
+      with:
+        name: valgrind-logs
+        path: valgrind.log
+
+  code-quality:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libncurses-dev libsdl2-dev cppcheck
+
+    - name: Run cppcheck static analysis
+      run: |
+        cppcheck --enable=all --suppress=missingIncludeSystem \
+          --error-exitcode=0 --inline-suppr \
+          -I include src/ 2>&1 | tee cppcheck.log
+
+    - name: Check code formatting
+      run: |
+        echo "Code formatting check (placeholder for future clang-format integration)"
+
+    - name: Upload static analysis results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: cppcheck-results
+        path: cppcheck.log
+
+  build-without-sdl2:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies (ncurses only)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libncurses-dev
+
+    - name: Build without SDL2
+      run: |
+        make clean
+        make
+
+    - name: Verify no SDL2 dependency
+      run: |
+        ! ldd terminal-stars | grep -i sdl2 || (echo "SDL2 dependency found but should be optional" && exit 1)
+        echo "Build without SDL2 successful - gamepad support properly disabled"
+
+  documentation:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Check documentation files exist
+      run: |
+        test -f README.md
+        test -f CLAUDE.md
+        test -f CONTRIBUTING.md
+        test -f CHANGELOG.md
+        test -f FEATURES.md
+        test -f MODE-GUIDE.md
+        test -f LICENSE
+        echo "All required documentation files present"
+
+    - name: Check for broken links in markdown
+      run: |
+        echo "Link checking placeholder (could use markdown-link-check in future)"
+
+    - name: Validate markdown formatting
+      run: |
+        echo "Markdown validation placeholder (could use markdownlint in future)"

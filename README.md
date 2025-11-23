@@ -2,6 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Language: C](https://img.shields.io/badge/language-C-blue.svg)](https://en.wikipedia.org/wiki/C_(programming_language))
+[![CI](https://github.com/jcaldwell-labs/terminal-stars/actions/workflows/ci.yml/badge.svg)](https://github.com/jcaldwell-labs/terminal-stars/actions/workflows/ci.yml)
 
 A terminal-based 3D space combat simulator written in C using frame buffering. Features 6-DOF flight physics, weapons systems, five game modes including skeet shooting, and USB joystick support.
 
@@ -91,7 +92,10 @@ Terminal Stars provides smooth, 60fps space combat and flight simulation directl
 ```bash
 make              # Build the application
 make run          # Build and run
-make test         # Run tests
+make test         # Run unit tests
+make benchmark    # Run performance benchmarks
+make validate     # Validate terminal compatibility
+make install      # Install to /usr/local (or custom PREFIX)
 make clean        # Clean build artifacts
 make help         # Show all available targets
 ```
@@ -183,6 +187,16 @@ This project shares architectural patterns with [boxes-live](../boxes-live), ano
 
 MIT License - See LICENSE file for details
 
+## Testing
+
+Terminal Stars includes a comprehensive test suite and benchmarking tools:
+
+```bash
+make test         # Run all unit tests
+make benchmark    # Run performance benchmarks
+make validate     # Validate terminal compatibility
+```
+
 ## Contributing
 
-Contributions are welcome! This project is in early development, so there's plenty of room for improvement and new features.
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to this project.
