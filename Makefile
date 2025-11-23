@@ -30,7 +30,7 @@ LIB_OBJECTS = $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(LIB_SOURCES))
 TEST_SOURCES = $(wildcard $(TESTDIR)/test_*.c)
 TEST_BINS = $(patsubst $(TESTDIR)/test_%.c,$(TESTBINDIR)/test_%,$(TEST_SOURCES))
 
-.PHONY: all clean run test help
+.PHONY: all clean run test help install uninstall benchmark validate
 
 all: $(TARGET)
 
@@ -78,6 +78,41 @@ test_joystick: test_joystick.c
 test-joystick: test_joystick
 	@./test_joystick
 
+# Benchmark target
+$(TESTBINDIR)/benchmark: $(TESTDIR)/benchmark.c $(LIB_OBJECTS) | $(TESTBINDIR)
+	$(CC) $(CFLAGS) $< $(LIB_OBJECTS) -o $@ $(LDFLAGS)
+
+benchmark: $(TESTBINDIR)/benchmark
+	@echo "Running performance benchmarks..."
+	@./$(TESTBINDIR)/benchmark
+
+# Terminal validation
+validate:
+	@./validate_terminal.sh
+
+# Install target
+PREFIX ?= /usr/local
+BINDIR = $(PREFIX)/bin
+DOCDIR = $(PREFIX)/share/doc/terminal-stars
+
+install: $(TARGET)
+	@echo "Installing terminal-stars to $(PREFIX)..."
+	install -d $(BINDIR)
+	install -m 755 $(TARGET) $(BINDIR)
+	install -d $(DOCDIR)
+	install -m 644 README.md $(DOCDIR)
+	install -m 644 FEATURES.md $(DOCDIR)
+	install -m 644 MODE-GUIDE.md $(DOCDIR)
+	install -m 644 LICENSE $(DOCDIR)
+	@echo "Installation complete!"
+	@echo "Run 'terminal-stars' to start the application"
+
+uninstall:
+	@echo "Uninstalling terminal-stars..."
+	rm -f $(BINDIR)/$(TARGET)
+	rm -rf $(DOCDIR)
+	@echo "Uninstall complete"
+
 help:
 	@echo "Terminal Stars - Build System"
 	@echo "=============================="
@@ -86,9 +121,16 @@ help:
 	@echo "  make              - Build the application"
 	@echo "  make run          - Build and run the application"
 	@echo "  make test         - Run all tests"
-	@echo "  make test-joystick- Test SDL2 joystick detection"
+	@echo "  make benchmark    - Run performance benchmarks"
+	@echo "  make test-joystick - Test SDL2 joystick detection"
+	@echo "  make validate     - Validate terminal compatibility"
+	@echo "  make install      - Install to system (default: /usr/local)"
+	@echo "  make uninstall    - Uninstall from system"
 	@echo "  make clean        - Clean build artifacts"
 	@echo "  make help         - Show this help message"
+	@echo ""
+	@echo "Installation options:"
+	@echo "  make install PREFIX=/custom/path  - Install to custom location"
 	@echo ""
 	@echo "Requirements:"
 	@echo "  - GCC compiler (required)"
