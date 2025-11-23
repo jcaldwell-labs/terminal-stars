@@ -32,13 +32,12 @@ jobs:
 
     - name: Run tests
       run: |
-        make test || echo "Tests not yet implemented - continuing..."
+        make test
 
     - name: Check for memory leaks (with valgrind)
       if: matrix.compiler == 'gcc'
       run: |
-        echo "Memory leak detection would run here when tests are available"
-        # valgrind --leak-check=full --error-exitcode=1 ./tests/bin/test_* 2>&1 | tee valgrind.log
+        valgrind --leak-check=full --error-exitcode=1 ./tests/bin/test_* 2>&1 | tee valgrind.log
 
     - name: Upload valgrind logs
       if: failure() && matrix.compiler == 'gcc'
@@ -95,7 +94,14 @@ jobs:
 
     - name: Verify no SDL2 dependency
       run: |
-        ! ldd terminal-stars | grep -i sdl2 || (echo "SDL2 dependency found but should be optional" && exit 1)
+        if [ ! -x "./terminal-stars" ]; then
+          echo "Error: terminal-stars executable not found or not executable"
+          exit 1
+        fi
+        if ldd terminal-stars | grep -i sdl2; then
+          echo "SDL2 dependency found but should be optional"
+          exit 1
+        fi
         echo "Build without SDL2 successful - gamepad support properly disabled"
 
   documentation:

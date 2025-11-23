@@ -96,8 +96,8 @@ Before contributing, ensure you have:
 
 ```c
 // Good function structure
-void update_ship_physics(Ship *ship, float delta_time) {
-    if (!ship || delta_time <= 0.0f) {
+void update_ship_physics(Ship *ship, double delta_time) {
+    if (!ship || delta_time <= 0.0) {
         return;
     }
 
@@ -107,7 +107,7 @@ void update_ship_physics(Ship *ship, float delta_time) {
     ship->z += ship->vz * delta_time;
 
     // Apply drag coefficient
-    ship->vx *= (1.0f - DRAG_COEFFICIENT * delta_time);
+    ship->vx *= (1.0 - DRAG_COEFFICIENT * delta_time);
 }
 ```
 
@@ -138,11 +138,11 @@ Tests are located in the `tests/` directory. Each module should have correspondi
 #include "../include/render.h"
 
 void test_frame_buffer_creation() {
-    FrameBuffer *fb = create_frame_buffer(80, 24);
+    FrameBuffer *fb = framebuffer_create(80, 24);
     assert(fb != NULL);
     assert(fb->width == 80);
     assert(fb->height == 24);
-    destroy_frame_buffer(fb);
+    framebuffer_destroy(fb);
 }
 
 int main() {

@@ -122,7 +122,7 @@ help:
 	@echo "  make run          - Build and run the application"
 	@echo "  make test         - Run all tests"
 	@echo "  make benchmark    - Run performance benchmarks"
-	@echo "  make test-joystick- Test SDL2 joystick detection"
+	@echo "  make test-joystick - Test SDL2 joystick detection"
 	@echo "  make validate     - Validate terminal compatibility"
 	@echo "  make install      - Install to system (default: /usr/local)"
 	@echo "  make uninstall    - Uninstall from system"

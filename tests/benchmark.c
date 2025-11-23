@@ -226,7 +226,14 @@ int main() {
     printf("Unknown\n");
     #endif
 
-    printf("Compiler: GCC %s\n", __VERSION__);
+    printf("Compiler: ");
+    #ifdef __clang__
+        printf("Clang %d.%d.%d\n", __clang_major__, __clang_minor__, __clang_patchlevel__);
+    #elif defined(__GNUC__)
+        printf("GCC %d.%d.%d\n", __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__);
+    #else
+        printf("Unknown\n");
+    #endif
     printf("\n");
 
     // Run all benchmarks

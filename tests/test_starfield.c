@@ -25,9 +25,11 @@ static int tests_failed = 0;
     tests_passed++;
 
 #define FAIL(msg) \
-    printf("FAIL: %s\n", msg); \
-    tests_failed++; \
-    return;
+    do { \
+        printf("FAIL: %s\n", msg); \
+        tests_failed++; \
+        exit(1); \
+    } while(0)
 
 // Test starfield initialization
 void test_starfield_init() {

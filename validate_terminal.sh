@@ -5,7 +5,7 @@
 # Validates terminal compatibility, capabilities, and performance
 # Tests various TERM values, color support, and terminal features
 
-set -e
+# Note: Not using 'set -e' to allow collecting all issues before exiting
 
 # Color codes for output
 RED='\033[0;31m'
@@ -210,11 +210,12 @@ main() {
 
     if [ -f "Makefile" ]; then
         print_info "Attempting to build terminal-stars..."
-        if make clean && make 2>&1 | tail -1 | grep -q "terminal-stars"; then
-            print_success "Build successful!"
-
+        if make clean && make; then
             if [ -x "./terminal-stars" ]; then
+                print_success "Build successful!"
                 print_success "Executable created: ./terminal-stars"
+            else
+                print_error "Build completed but executable not found or not executable"
             fi
         else
             print_error "Build failed - check compiler errors above"
