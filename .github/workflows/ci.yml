@@ -18,19 +18,34 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Checkout termui library
+      uses: actions/checkout@v4
+      with:
+        repository: jcaldwell-labs/jcaldwell-labs
+        path: jcaldwell-labs
+        sparse-checkout: libs/termui
+
     - name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y libncurses-dev libsdl2-dev valgrind
 
+    - name: Build termui library
+      run: |
+        cd jcaldwell-labs/libs/termui
+        make
+
     - name: Build with ${{ matrix.compiler }}
       env:
         CC: ${{ matrix.compiler }}
+        TERMUI_DIR: jcaldwell-labs/libs/termui
       run: |
         make clean
         make
 
     - name: Run tests
+      env:
+        TERMUI_DIR: jcaldwell-labs/libs/termui
       run: |
         make test
 
@@ -53,6 +68,13 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Checkout termui library
+      uses: actions/checkout@v4
+      with:
+        repository: jcaldwell-labs/jcaldwell-labs
+        path: jcaldwell-labs
+        sparse-checkout: libs/termui
+
     - name: Install dependencies
       run: |
         sudo apt-get update
@@ -62,7 +84,7 @@ jobs:
       run: |
         cppcheck --enable=all --suppress=missingIncludeSystem \
           --error-exitcode=0 --inline-suppr \
-          -I include src/ 2>&1 | tee cppcheck.log
+          -I include -I jcaldwell-labs/libs/termui/include src/ 2>&1 | tee cppcheck.log
 
     - name: Check code formatting
       run: |
@@ -82,12 +104,26 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Checkout termui library
+      uses: actions/checkout@v4
+      with:
+        repository: jcaldwell-labs/jcaldwell-labs
+        path: jcaldwell-labs
+        sparse-checkout: libs/termui
+
     - name: Install dependencies (ncurses only)
       run: |
         sudo apt-get update
         sudo apt-get install -y libncurses-dev
 
+    - name: Build termui library
+      run: |
+        cd jcaldwell-labs/libs/termui
+        make
+
     - name: Build without SDL2
+      env:
+        TERMUI_DIR: jcaldwell-labs/libs/termui
       run: |
         make clean
         make
