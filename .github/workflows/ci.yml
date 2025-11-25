@@ -18,10 +18,22 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Checkout termui library
+      uses: actions/checkout@v4
+      with:
+        repository: jcaldwell-labs/jcaldwell-labs
+        path: ../jcaldwell-labs
+        sparse-checkout: libs/termui
+
     - name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y libncurses-dev libsdl2-dev valgrind
+
+    - name: Build termui library
+      run: |
+        cd ../jcaldwell-labs/libs/termui
+        make
 
     - name: Build with ${{ matrix.compiler }}
       env:
@@ -53,6 +65,13 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Checkout termui library
+      uses: actions/checkout@v4
+      with:
+        repository: jcaldwell-labs/jcaldwell-labs
+        path: ../jcaldwell-labs
+        sparse-checkout: libs/termui
+
     - name: Install dependencies
       run: |
         sudo apt-get update
@@ -82,10 +101,22 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Checkout termui library
+      uses: actions/checkout@v4
+      with:
+        repository: jcaldwell-labs/jcaldwell-labs
+        path: ../jcaldwell-labs
+        sparse-checkout: libs/termui
+
     - name: Install dependencies (ncurses only)
       run: |
         sudo apt-get update
         sudo apt-get install -y libncurses-dev
+
+    - name: Build termui library
+      run: |
+        cd ../jcaldwell-labs/libs/termui
+        make
 
     - name: Build without SDL2
       run: |
