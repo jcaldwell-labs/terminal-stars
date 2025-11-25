@@ -1,6 +1,11 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -Werror -Iinclude -std=gnu99
-LDFLAGS = -lncurses -lm
+
+# termui library location (in jcaldwell-labs monorepo)
+TERMUI_DIR ?= ../jcaldwell-labs/libs/termui
+
+CFLAGS = -Wall -Wextra -Werror -Iinclude -I$(TERMUI_DIR)/include -std=gnu99
+# Link statically against termui to avoid runtime library path issues
+LDFLAGS = $(TERMUI_DIR)/libtermui.a -lncurses -lm
 TARGET = terminal-stars
 
 # Check if SDL2 is available
