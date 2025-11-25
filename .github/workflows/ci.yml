@@ -22,7 +22,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         repository: jcaldwell-labs/jcaldwell-labs
-        path: ../jcaldwell-labs
+        path: jcaldwell-labs
         sparse-checkout: libs/termui
 
     - name: Install dependencies
@@ -32,17 +32,20 @@ jobs:
 
     - name: Build termui library
       run: |
-        cd ../jcaldwell-labs/libs/termui
+        cd jcaldwell-labs/libs/termui
         make
 
     - name: Build with ${{ matrix.compiler }}
       env:
         CC: ${{ matrix.compiler }}
+        TERMUI_DIR: jcaldwell-labs/libs/termui
       run: |
         make clean
         make
 
     - name: Run tests
+      env:
+        TERMUI_DIR: jcaldwell-labs/libs/termui
       run: |
         make test
 
@@ -69,7 +72,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         repository: jcaldwell-labs/jcaldwell-labs
-        path: ../jcaldwell-labs
+        path: jcaldwell-labs
         sparse-checkout: libs/termui
 
     - name: Install dependencies
@@ -81,7 +84,7 @@ jobs:
       run: |
         cppcheck --enable=all --suppress=missingIncludeSystem \
           --error-exitcode=0 --inline-suppr \
-          -I include src/ 2>&1 | tee cppcheck.log
+          -I include -I jcaldwell-labs/libs/termui/include src/ 2>&1 | tee cppcheck.log
 
     - name: Check code formatting
       run: |
@@ -105,7 +108,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         repository: jcaldwell-labs/jcaldwell-labs
-        path: ../jcaldwell-labs
+        path: jcaldwell-labs
         sparse-checkout: libs/termui
 
     - name: Install dependencies (ncurses only)
@@ -115,10 +118,12 @@ jobs:
 
     - name: Build termui library
       run: |
-        cd ../jcaldwell-labs/libs/termui
+        cd jcaldwell-labs/libs/termui
         make
 
     - name: Build without SDL2
+      env:
+        TERMUI_DIR: jcaldwell-labs/libs/termui
       run: |
         make clean
         make
