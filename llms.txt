@@ -1,0 +1,131 @@
+# Terminal Stars - AI Assistant Guide
+
+> Terminal-based 3D space combat simulator written in C
+
+## Project Overview
+
+Terminal Stars is a fully-implemented terminal game featuring 6-DOF (six degrees of freedom) flight physics, multiple game modes, weapons systems, and gamepad support. It runs entirely in the terminal using ncurses for rendering.
+
+## Key Capabilities
+
+- **3D Space Combat**: Dogfighting with dual-missile weapons and collision detection
+- **6-DOF Flight**: Full pitch, yaw, roll control with inertial physics
+- **Five Game Modes**: Single player, dual player, co-op, training, skeet shooting
+- **USB Gamepad Support**: SDL2-based joystick input for up to 2 controllers
+- **60 FPS Rendering**: Double-buffered frame buffer for smooth animation
+- **Six Visual Effects**: Linear, spiral, warp, tunnel, explode, wave starfield modes
+
+## Quick Start
+
+```bash
+# Install dependencies
+sudo apt-get install libncurses-dev  # Linux
+brew install ncurses                  # macOS
+
+# Build and run
+git clone https://github.com/jcaldwell-labs/terminal-stars.git
+cd terminal-stars
+make
+./build/terminal-stars
+```
+
+## Common Tasks
+
+### Building
+```bash
+make              # Build
+make run          # Build and run
+make clean        # Clean build artifacts
+make test         # Run tests
+```
+
+### Controls (Player 1)
+- WASD: Pitch/Yaw
+- Q/E: Roll
+- Space: Thrust
+- F: Fire missiles
+- V: Toggle camera view
+- Tab: Cycle starfield effects
+- M: Return to menu
+
+### Game Modes
+1. **Single Player**: vs AI opponent (orbital pattern)
+2. **Dual Player**: Two-player competitive combat
+3. **Co-op**: Formation flying with partner
+4. **Training**: Target practice with 4 patterns
+5. **Skeet Shooting**: Clay pigeon physics simulation
+
+## Architecture
+
+```
+src/
+├── main.c       # Game loop, input, HUD rendering
+├── ship.c       # 6-DOF physics engine
+├── weapons.c    # Missiles, explosions, collision
+├── modes.c      # Game mode logic and menus
+├── render.c     # 3D projection and frame buffer
+├── starfield.c  # Star management
+├── effects.c    # Six starfield effects
+├── gamepad.c    # SDL2 joystick support
+├── input.c      # Keyboard handling
+└── terminal.c   # ncurses setup/cleanup
+```
+
+## Data Structures
+
+Key types defined in `include/types.h`:
+- `Ship3D`: Position, velocity, orientation, control mode
+- `Missile`: Guided projectile with 3D trajectory
+- `Explosion`: Expanding visual effect
+- `Camera`: View position and rotation
+- `WeaponsSystem`: Object pools for missiles/explosions
+- `GameState`: Current mode and session state
+
+## Use Cases
+
+### Adding a New Game Mode
+1. Add enum value to `GameMode` in `types.h`
+2. Add case to mode selection menu in `modes.c`
+3. Implement mode-specific logic in `modes.c`
+4. Update HUD rendering in `main.c`
+
+### Modifying Flight Physics
+- Ship physics are in `src/ship.c`
+- Key functions: `init_ship()`, `update_ship()`, `apply_thrust()`
+- Physics constants: `MAX_SPEED`, `DRAG`, `ANGULAR_DAMPING`
+
+### Adding New Weapons
+1. Define weapon struct in `types.h`
+2. Add to `WeaponsSystem` object pool
+3. Implement fire/update/render in `weapons.c`
+4. Add collision detection
+
+### Creating Visual Effects
+- Effects defined in `src/effects.c`
+- Each effect modifies star positions per frame
+- Add new effect enum to `EffectType` in `types.h`
+- Implement `apply_EFFECT_NAME()` function
+
+## Dependencies
+
+- **Required**: ncurses (terminal rendering)
+- **Optional**: SDL2 (gamepad support)
+- **Compiler**: GCC/Clang with C99 support
+
+## Performance Notes
+
+- Target: 60 FPS (16.67ms per frame)
+- Uses delta-time for frame-independent physics
+- Object pooling for missiles (100) and explosions (50)
+- Efficient diff rendering where possible
+
+## Repository
+
+https://github.com/jcaldwell-labs/terminal-stars
+
+## Documentation
+
+- README.md: Overview and quick start
+- docs/FEATURES.md: Complete feature reference
+- docs/guides/MODE-GUIDE.md: Gameplay guide
+- CLAUDE.md: Development guidelines for AI assistants
