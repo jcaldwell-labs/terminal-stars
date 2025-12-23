@@ -221,9 +221,38 @@ Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 - **Issues**: [GitHub Issues](https://github.com/jcaldwell-labs/terminal-stars/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/jcaldwell-labs/terminal-stars/discussions)
 
-## Related Projects
+## Related jcaldwell-labs Projects
 
-- [boxes-live](https://github.com/jcaldwell-labs/boxes-live) - Terminal-based box visualization (shared frame buffering patterns)
+Terminal Stars is part of a collection of terminal-focused tools and games from jcaldwell-labs.
+
+### Terminal/TUI Projects
+
+| Project | Description | Synergy |
+|---------|-------------|---------|
+| [boxes-live](https://github.com/jcaldwell-labs/boxes-live) | Real-time ASCII box drawing with joystick support | Shared frame buffering patterns and joystick input handling |
+| [my-grid](https://github.com/jcaldwell-labs/my-grid) | ASCII canvas editor with vim-style navigation | Zone rendering techniques applicable to HUD layouts |
+| [atari-style](https://github.com/jcaldwell-labs/atari-style) | Retro visual effects and shaders for terminals | Visual effects can enhance starfield and explosion rendering |
+| [smartterm-prototype](https://github.com/jcaldwell-labs/smartterm-prototype) | Smart terminal with readline-like features | Terminal management patterns for ncurses applications |
+
+### CLI Tools
+
+| Project | Description |
+|---------|-------------|
+| [my-context](https://github.com/jcaldwell-labs/my-context) | Context tracking for development sessions (Go CLI) |
+| [fintrack](https://github.com/jcaldwell-labs/fintrack) | Personal finance tracking CLI (Go) |
+| [tario](https://github.com/jcaldwell-labs/tario) | Terminal-based platformer game (Go) |
+
+### Game Engines
+
+| Project | Description | Synergy |
+|---------|-------------|---------|
+| [adventure-engine-v2](https://github.com/jcaldwell-labs/adventure-engine-v2) | Multiplayer text adventure engine (C) | Shared C patterns for game state management |
+
+### Meta/Organization
+
+| Project | Description |
+|---------|-------------|
+| [capability-catalog](https://github.com/jcaldwell-labs/capability-catalog) | Skill/capability definitions for AI agents |
 
 ## License
 

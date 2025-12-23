@@ -129,3 +129,31 @@ https://github.com/jcaldwell-labs/terminal-stars
 - docs/FEATURES.md: Complete feature reference
 - docs/guides/MODE-GUIDE.md: Gameplay guide
 - CLAUDE.md: Development guidelines for AI assistants
+
+## Related jcaldwell-labs Projects
+
+Terminal Stars is part of a collection of terminal-focused tools and games.
+
+### Terminal/TUI Projects
+- **boxes-live**: Real-time ASCII box drawing with joystick support - shares frame buffering patterns
+- **my-grid**: ASCII canvas editor with vim-style navigation and zones
+- **atari-style**: Retro visual effects and shaders for terminal applications
+- **smartterm-prototype**: Smart terminal with readline-like features
+
+### CLI Tools (Go)
+- **my-context**: Context tracking for development sessions
+- **fintrack**: Personal finance tracking CLI
+- **tario**: Terminal-based platformer game
+
+### Game Engines
+- **adventure-engine-v2**: Multiplayer text adventure engine (C) - shares C game patterns
+
+### Project Synergies
+
+When working on terminal-stars, these cross-project opportunities exist:
+
+1. **atari-style → terminal-stars**: Import retro shader effects to enhance starfield visuals, explosion animations, and warp effects
+2. **boxes-live ↔ terminal-stars**: Shared joystick handling code and frame buffer implementation patterns
+3. **my-grid → terminal-stars**: Zone-based rendering concepts could improve HUD layout system
+4. **adventure-engine-v2 ↔ terminal-stars**: Both use C with similar game state management; potential for shared utility libraries
+5. **tario → terminal-stars**: Cross-pollination of terminal game development patterns between Go and C implementations
