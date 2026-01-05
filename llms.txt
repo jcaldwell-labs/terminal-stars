@@ -1,159 +1,68 @@
-# Terminal Stars - AI Assistant Guide
+# terminal-stars
 
-> Terminal-based 3D space combat simulator written in C
+> Educational 3D starfield visualizer for the terminal
 
-## Project Overview
+## What This Is
 
-Terminal Stars is a fully-implemented terminal game featuring 6-DOF (six degrees of freedom) flight physics, multiple game modes, weapons systems, and gamepad support. It runs entirely in the terminal using ncurses for rendering.
+A ~1,500 line C program demonstrating terminal graphics programming concepts:
+- 3D perspective projection (divide by Z for depth)
+- Camera transformations (Euler angles: yaw, pitch, roll)
+- Double-buffered rendering (flicker-free animation)
+- Delta-time animation (frame-rate independent)
+- Six visual effects (linear, spiral, warp, tunnel, explode, wave)
 
-## Key Capabilities
+## What This Is NOT
 
-- **3D Space Combat**: Dogfighting with dual-missile weapons and collision detection
-- **6-DOF Flight**: Full pitch, yaw, roll control with inertial physics
-- **Five Game Modes**: Single player, dual player, co-op, training, skeet shooting
-- **USB Gamepad Support**: SDL2-based joystick input for up to 2 controllers
-- **60 FPS Rendering**: Double-buffered frame buffer for smooth animation
-- **Six Visual Effects**: Linear, spiral, warp, tunnel, explode, wave starfield modes
+This is NOT the full terminal shader/combat simulator. For that, see:
+https://github.com/jcaldwell-labs/atari-style
 
-## Quick Start
+## Key Files
+
+- src/render.c - 3D projection math, camera transforms
+- src/effects.c - Six animation techniques
+- src/main.c - CLI parsing, main loop, input handling
+- include/types.h - Core data structures (Star, Camera, Starfield, FrameBuffer)
+
+## Build & Run
 
 ```bash
-# Install dependencies
-sudo apt-get install libncurses-dev  # Linux
-brew install ncurses                  # macOS
+# Requirements: GCC, ncurses
+sudo apt install libncurses-dev
 
 # Build and run
-git clone https://github.com/jcaldwell-labs/terminal-stars.git
-cd terminal-stars
-make
-./build/terminal-stars
+make && ./terminal-stars
+
+# With options
+./terminal-stars --stars 1000 --speed 2.0 --effect spiral --zoom 75
 ```
 
-## Common Tasks
+## CLI Options
 
-### Building
-```bash
-make              # Build
-make run          # Build and run
-make clean        # Clean build artifacts
-make test         # Run tests
-```
+--stars N     Number of stars (10-5000, default: 500)
+--speed F     Speed multiplier (0.1-5.0, default: 1.0)
+--effect E    Effect: linear|spiral|warp|tunnel|explode|wave (default: linear)
+--zoom F      Zoom level (10-200, default: 50.0)
+--help        Show help
 
-### Controls (Player 1)
-- WASD: Pitch/Yaw
-- Q/E: Roll
-- Space: Thrust
-- F: Fire missiles
-- V: Toggle camera view
-- Tab: Cycle starfield effects
-- M: Return to menu
+## Keyboard Controls
 
-### Game Modes
-1. **Single Player**: vs AI opponent (orbital pattern)
-2. **Dual Player**: Two-player competitive combat
-3. **Co-op**: Formation flying with partner
-4. **Training**: Target practice with 4 patterns
-5. **Skeet Shooting**: Clay pigeon physics simulation
+Tab     Cycle effects
+1-6     Select effect directly
++/-     Adjust speed
+[/]     Adjust zoom
+Q/ESC   Quit
 
-## Architecture
+## Learning Path
 
-```
-src/
-├── main.c       # Game loop, input, HUD rendering
-├── ship.c       # 6-DOF physics engine
-├── weapons.c    # Missiles, explosions, collision
-├── modes.c      # Game mode logic and menus
-├── render.c     # 3D projection and frame buffer
-├── starfield.c  # Star management
-├── effects.c    # Six starfield effects
-├── gamepad.c    # SDL2 joystick support
-├── input.c      # Keyboard handling
-└── terminal.c   # ncurses setup/cleanup
-```
-
-## Data Structures
-
-Key types defined in `include/types.h`:
-- `Ship3D`: Position, velocity, orientation, control mode
-- `Missile`: Guided projectile with 3D trajectory
-- `Explosion`: Expanding visual effect
-- `Camera`: View position and rotation
-- `WeaponsSystem`: Object pools for missiles/explosions
-- `GameState`: Current mode and session state
-
-## Use Cases
-
-### Adding a New Game Mode
-1. Add enum value to `GameMode` in `types.h`
-2. Add case to mode selection menu in `modes.c`
-3. Implement mode-specific logic in `modes.c`
-4. Update HUD rendering in `main.c`
-
-### Modifying Flight Physics
-- Ship physics are in `src/ship.c`
-- Key functions: `init_ship()`, `update_ship()`, `apply_thrust()`
-- Physics constants: `MAX_SPEED`, `DRAG`, `ANGULAR_DAMPING`
-
-### Adding New Weapons
-1. Define weapon struct in `types.h`
-2. Add to `WeaponsSystem` object pool
-3. Implement fire/update/render in `weapons.c`
-4. Add collision detection
-
-### Creating Visual Effects
-- Effects defined in `src/effects.c`
-- Each effect modifies star positions per frame
-- Add new effect enum to `EffectType` in `types.h`
-- Implement `apply_EFFECT_NAME()` function
-
-## Dependencies
-
-- **Required**: ncurses (terminal rendering)
-- **Optional**: SDL2 (gamepad support)
-- **Compiler**: GCC/Clang with C99 support
-
-## Performance Notes
-
-- Target: 60 FPS (16.67ms per frame)
-- Uses delta-time for frame-independent physics
-- Object pooling for missiles (100) and explosions (50)
-- Efficient diff rendering where possible
-
-## Repository
-
-https://github.com/jcaldwell-labs/terminal-stars
-
-## Documentation
-
-- README.md: Overview and quick start
-- docs/FEATURES.md: Complete feature reference
-- docs/guides/MODE-GUIDE.md: Gameplay guide
-- CLAUDE.md: Development guidelines for AI assistants
+1. types.h - Understand Star, Camera, Starfield, FrameBuffer structs
+2. terminal.c - ncurses initialization pattern
+3. render.c - The perspective projection formula
+4. effects.c - Six different animation techniques
+5. main.c - Game loop: input → update → render → display
 
 ## Related jcaldwell-labs Projects
 
-Terminal Stars is part of a collection of terminal-focused tools and games.
-
-### Terminal/TUI Projects
-- **boxes-live**: Real-time ASCII box drawing with joystick support - shares frame buffering patterns
-- **my-grid**: ASCII canvas editor with vim-style navigation and zones
-- **atari-style**: Retro visual effects and shaders for terminal applications
-- **smartterm-prototype**: Smart terminal with readline-like features
-
-### CLI Tools (Go)
-- **my-context**: Context tracking for development sessions
-- **fintrack**: Personal finance tracking CLI
-- **tario**: Terminal-based platformer game
-
-### Game Engines
-- **adventure-engine-v2**: Multiplayer text adventure engine (C) - shares C game patterns
-
-### Project Synergies
-
-When working on terminal-stars, these cross-project opportunities exist:
-
-1. **atari-style → terminal-stars**: Import retro shader effects to enhance starfield visuals, explosion animations, and warp effects
-2. **boxes-live ↔ terminal-stars**: Shared joystick handling code and frame buffer implementation patterns
-3. **my-grid → terminal-stars**: Zone-based rendering concepts could improve HUD layout system
-4. **adventure-engine-v2 ↔ terminal-stars**: Both use C with similar game state management; potential for shared utility libraries
-5. **tario → terminal-stars**: Cross-pollination of terminal game development patterns between Go and C implementations
+- atari-style: Full terminal shader with flight combat (advanced)
+- boxes-live: Terminal canvas with pan/zoom
+- tario: ASCII side-scrolling platformer
+- adventure-engine-v2: Text adventure game engine
