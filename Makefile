@@ -1,33 +1,43 @@
+# Terminal Stars - Educational Starfield Visualizer
+# ================================================
+# A clean, simple build for the starfield visualizer demo.
+#
+# Requirements:
+#   - GCC compiler (required)
+#   - ncurses library - libncurses-dev (required)
+
 CC = gcc
 
-# termui library location (in jcaldwell-labs monorepo)
-TERMUI_DIR ?= ../jcaldwell-labs/libs/termui
+# Compiler flags
+#   -Wall -Wextra: Enable warnings for better code quality
+#   -Werror: Treat warnings as errors
+#   -std=gnu99: Use GNU C99 for clock_gettime and other POSIX features
+CFLAGS = -Wall -Wextra -Werror -Iinclude -std=gnu99
 
-CFLAGS = -Wall -Wextra -Werror -Iinclude -I$(TERMUI_DIR)/include -std=gnu99
-# Link statically against termui to avoid runtime library path issues
-LDFLAGS = $(TERMUI_DIR)/libtermui.a -lncurses -lm
+# Linker flags
+#   - ncurses for terminal handling
+#   - libm for math functions (sin, cos, sqrt, atan2)
+LDFLAGS = -lncurses -lm
+
 TARGET = terminal-stars
 
-# Check if SDL2 is available
-SDL2_EXISTS := $(shell command -v sdl2-config 2> /dev/null)
-ifdef SDL2_EXISTS
-    CFLAGS += $(shell sdl2-config --cflags) -DHAVE_SDL2
-    LDFLAGS += $(shell sdl2-config --libs)
-    $(info SDL2 found - enabling gamepad support)
-else
-    $(info SDL2 not found - gamepad support disabled)
-endif
+# Directory structure
 SRCDIR = src
 INCDIR = include
 OBJDIR = obj
 TESTDIR = tests
 TESTBINDIR = $(TESTDIR)/bin
 
-# Main application sources
-SOURCES = $(wildcard $(SRCDIR)/*.c)
+# Source files (5 files for the educational version)
+SOURCES = $(SRCDIR)/main.c \
+          $(SRCDIR)/starfield.c \
+          $(SRCDIR)/effects.c \
+          $(SRCDIR)/render.c \
+          $(SRCDIR)/terminal.c
+
 OBJECTS = $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(SOURCES))
 
-# Library sources (everything except main.c)
+# Library objects (everything except main.c) for tests
 LIB_SOURCES = $(filter-out $(SRCDIR)/main.c,$(SOURCES))
 LIB_OBJECTS = $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(LIB_SOURCES))
 
@@ -35,16 +45,20 @@ LIB_OBJECTS = $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(LIB_SOURCES))
 TEST_SOURCES = $(wildcard $(TESTDIR)/test_*.c)
 TEST_BINS = $(patsubst $(TESTDIR)/test_%.c,$(TESTBINDIR)/test_%,$(TEST_SOURCES))
 
-.PHONY: all clean run test help install uninstall benchmark validate
+.PHONY: all clean run test help install uninstall benchmark
 
+# Default target
 all: $(TARGET)
 
+# Link the final executable
 $(TARGET): $(OBJECTS)
 	$(CC) $(OBJECTS) -o $(TARGET) $(LDFLAGS)
 
+# Compile source files to object files
 $(OBJDIR)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
+# Create object directory
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
 
@@ -70,18 +84,13 @@ test: $(TEST_BINS)
 	@echo "All tests passed!"
 	@echo "=========================================="
 
+# Clean build artifacts
 clean:
-	rm -rf $(OBJDIR) $(TARGET) $(TESTBINDIR) test_joystick
+	rm -rf $(OBJDIR) $(TARGET) $(TESTBINDIR)
 
+# Build and run
 run: $(TARGET)
 	./$(TARGET)
-
-# Joystick test utility
-test_joystick: test_joystick.c
-	$(CC) -o test_joystick test_joystick.c -lSDL2
-
-test-joystick: test_joystick
-	@./test_joystick
 
 # Benchmark target
 $(TESTBINDIR)/benchmark: $(TESTDIR)/benchmark.c $(LIB_OBJECTS) | $(TESTBINDIR)
@@ -91,11 +100,7 @@ benchmark: $(TESTBINDIR)/benchmark
 	@echo "Running performance benchmarks..."
 	@./$(TESTBINDIR)/benchmark
 
-# Terminal validation
-validate:
-	@./validate_terminal.sh
-
-# Install target
+# Installation
 PREFIX ?= /usr/local
 BINDIR = $(PREFIX)/bin
 DOCDIR = $(PREFIX)/share/doc/terminal-stars
@@ -106,11 +111,9 @@ install: $(TARGET)
 	install -m 755 $(TARGET) $(BINDIR)
 	install -d $(DOCDIR)
 	install -m 644 README.md $(DOCDIR)
-	install -m 644 FEATURES.md $(DOCDIR)
-	install -m 644 MODE-GUIDE.md $(DOCDIR)
 	install -m 644 LICENSE $(DOCDIR)
 	@echo "Installation complete!"
-	@echo "Run 'terminal-stars' to start the application"
+	@echo "Run 'terminal-stars --help' for usage"
 
 uninstall:
 	@echo "Uninstalling terminal-stars..."
@@ -118,26 +121,26 @@ uninstall:
 	rm -rf $(DOCDIR)
 	@echo "Uninstall complete"
 
+# Help
 help:
-	@echo "Terminal Stars - Build System"
-	@echo "=============================="
+	@echo "Terminal Stars - Educational Starfield Visualizer"
+	@echo "=================================================="
 	@echo ""
-	@echo "Available targets:"
-	@echo "  make              - Build the application"
-	@echo "  make run          - Build and run the application"
-	@echo "  make test         - Run all tests"
-	@echo "  make benchmark    - Run performance benchmarks"
-	@echo "  make test-joystick - Test SDL2 joystick detection"
-	@echo "  make validate     - Validate terminal compatibility"
-	@echo "  make install      - Install to system (default: /usr/local)"
-	@echo "  make uninstall    - Uninstall from system"
-	@echo "  make clean        - Clean build artifacts"
-	@echo "  make help         - Show this help message"
+	@echo "Build targets:"
+	@echo "  make              Build the application"
+	@echo "  make run          Build and run"
+	@echo "  make test         Run unit tests"
+	@echo "  make benchmark    Run performance benchmarks"
+	@echo "  make clean        Remove build artifacts"
 	@echo ""
-	@echo "Installation options:"
-	@echo "  make install PREFIX=/custom/path  - Install to custom location"
+	@echo "Installation:"
+	@echo "  make install      Install to /usr/local"
+	@echo "  make install PREFIX=/path  Custom install location"
+	@echo "  make uninstall    Remove installed files"
 	@echo ""
 	@echo "Requirements:"
-	@echo "  - GCC compiler (required)"
-	@echo "  - ncurses library - libncurses-dev (required)"
-	@echo "  - SDL2 library - libsdl2-dev (optional, for joystick support)"
+	@echo "  - GCC compiler"
+	@echo "  - ncurses library (libncurses-dev)"
+	@echo ""
+	@echo "For the full terminal shader program, see:"
+	@echo "  https://github.com/jcaldwell-labs/atari-style"

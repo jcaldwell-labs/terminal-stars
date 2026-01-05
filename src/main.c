@@ -1,900 +1,358 @@
+/*
+ * Terminal Stars - Educational Starfield Visualizer
+ *
+ * A demonstration of 3D starfield effects rendered in the terminal.
+ * This is a clean, educational implementation focusing on:
+ *
+ * - 3D perspective projection (converting 3D positions to 2D screen)
+ * - Camera transformations (rotation using Euler angles)
+ * - Double-buffered rendering (flicker-free terminal animation)
+ * - Delta-time animation (frame-rate independent movement)
+ * - Various animation techniques (translation, rotation, waves)
+ *
+ * For the complete terminal shader program with full flight simulation,
+ * see: https://github.com/jcaldwell-labs/atari-style
+ *
+ * Usage:
+ *   ./terminal-stars [options]
+ *
+ * Options:
+ *   -s, --stars N     Number of stars (default: 500)
+ *   -p, --speed F     Speed multiplier (default: 1.0)
+ *   -e, --effect E    Effect: linear, spiral, warp, tunnel, explode, wave
+ *   -z, --zoom F      Zoom/perspective level (default: 50.0)
+ *   -h, --help        Show this help message
+ *
+ * Controls:
+ *   Tab, 1-6   Select effect
+ *   +/-        Adjust speed
+ *   [/]        Adjust zoom
+ *   Q, ESC     Quit
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
 #include <time.h>
 #include <unistd.h>
-#include <math.h>
+#include <getopt.h>
 #include <ncurses.h>
+
 #include "starfield.h"
 #include "render.h"
 #include "terminal.h"
-#include "ship.h"
 #include "effects.h"
-#include "weapons.h"
-#include "gamepad.h"
-#include "modes.h"
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
+/* Configuration defaults */
+#define DEFAULT_STAR_COUNT  500
+#define DEFAULT_SPEED       1.0
+#define DEFAULT_ZOOM        50.0
+#define DEFAULT_EFFECT      EFFECT_LINEAR
+#define TARGET_FPS          60
+#define FRAME_TIME_US       (1000000 / TARGET_FPS)
 
-#define DEFAULT_STAR_COUNT 500
-#define TARGET_FPS 60
-#define FRAME_TIME_US (1000000 / TARGET_FPS)
+/* Command-line option parsing */
+static struct option long_options[] = {
+    {"stars",  required_argument, 0, 's'},
+    {"speed",  required_argument, 0, 'p'},
+    {"effect", required_argument, 0, 'e'},
+    {"zoom",   required_argument, 0, 'z'},
+    {"help",   no_argument,       0, 'h'},
+    {0, 0, 0, 0}
+};
 
-static void draw_hud(const Ship3D *player1, const Ship3D *player2, const WeaponsSystem *weapons, int width, int height, bool ai_mode, int frame_count);
-static void draw_crosshair(int width, int height);
-static void calculate_target_point(const Ship3D *ship, double *target_x, double *target_y, double *target_z);
-static void draw_unit_circle_hud(const Ship3D *ship, int width, int height);
-static void draw_enemy_direction_indicator(const Ship3D *player, const Ship3D *enemy, const Camera *camera, int width, int height, int frame_count);
-static void draw_radar_overlay(const Ship3D *player, const Ship3D *enemy, const WeaponsSystem *weapons, int width, int height);
-static void process_joystick_input(Ship3D *ship, JoystickState *joy, WeaponsSystem *weapons, double dt, TrainingSession *training);
-static void process_keyboard_input(Ship3D *player1, Ship3D *player2, Starfield *field, WeaponsSystem *weapons, GameState *state, double dt, bool *running);
+/*
+ * parse_effect - Convert effect name to enum value
+ *
+ * Accepts both full names and numbers (1-6).
+ * Returns -1 if the effect name is not recognized.
+ */
+static int parse_effect(const char *name) {
+    if (!name) return -1;
 
+    /* Check for numeric input first */
+    if (name[0] >= '1' && name[0] <= '6' && name[1] == '\0') {
+        return name[0] - '1';  /* Convert '1'-'6' to 0-5 */
+    }
+
+    /* Check effect names (case-insensitive first character) */
+    switch (name[0]) {
+        case 'l': case 'L': return EFFECT_LINEAR;
+        case 's': case 'S': return EFFECT_SPIRAL;
+        case 'w': case 'W':
+            /* Distinguish 'warp' from 'wave' */
+            if (name[1] == 'a' && name[2] == 'r') return EFFECT_WARP;
+            if (name[1] == 'a' && name[2] == 'v') return EFFECT_WAVE;
+            return -1;
+        case 't': case 'T': return EFFECT_TUNNEL;
+        case 'e': case 'E': return EFFECT_EXPLODE;
+    }
+
+    return -1;
+}
+
+/*
+ * print_usage - Display help message
+ */
+static void print_usage(const char *program_name) {
+    printf("Terminal Stars - Educational Starfield Visualizer\n\n");
+    printf("Usage: %s [options]\n\n", program_name);
+    printf("Options:\n");
+    printf("  -s, --stars N     Number of stars (default: %d)\n", DEFAULT_STAR_COUNT);
+    printf("  -p, --speed F     Speed multiplier 0.1-5.0 (default: %.1f)\n", DEFAULT_SPEED);
+    printf("  -e, --effect E    Effect name or number 1-6 (default: linear)\n");
+    printf("  -z, --zoom F      Zoom level 10-200 (default: %.1f)\n", DEFAULT_ZOOM);
+    printf("  -h, --help        Show this help message\n\n");
+    printf("Effects:\n");
+    printf("  1. linear  - Classic forward motion\n");
+    printf("  2. spiral  - Rotating spiral pattern\n");
+    printf("  3. warp    - Hyperspeed with streaking\n");
+    printf("  4. tunnel  - Cylindrical tunnel\n");
+    printf("  5. explode - Outward explosion\n");
+    printf("  6. wave    - Sinusoidal motion\n\n");
+    printf("Keyboard Controls:\n");
+    printf("  Tab, 1-6   Select effect\n");
+    printf("  +/-        Increase/decrease speed\n");
+    printf("  [/]        Decrease/increase zoom\n");
+    printf("  Q, ESC     Quit\n\n");
+    printf("For the full terminal shader program, see:\n");
+    printf("  https://github.com/jcaldwell-labs/atari-style\n");
+}
+
+/*
+ * draw_hud - Render the heads-up display
+ *
+ * Shows current effect name, speed, zoom, and star count.
+ * Also displays available controls at the bottom of the screen.
+ */
+static void draw_hud(const Starfield *field, int width, int height) {
+    (void)width;  /* Reserved for future HUD elements */
+    const char *effect_name = effect_get_name((EffectMode)field->effect_mode);
+    char buf[80];
+
+    /* Top-left: Effect name (bold, white) */
+    attron(COLOR_PAIR(1) | A_BOLD);
+    mvprintw(0, 2, "Effect: %s", effect_name);
+    attroff(COLOR_PAIR(1) | A_BOLD);
+
+    /* Second line: Parameters */
+    snprintf(buf, sizeof(buf), "Speed: %.1f  Zoom: %.0f  Stars: %zu",
+             field->speed, field->zoom, field->star_count);
+    mvprintw(1, 2, "%s", buf);
+
+    /* Bottom: Controls (dim) */
+    attron(A_DIM);
+    mvprintw(height - 1, 2,
+             "Tab/1-6:Effect  +/-:Speed  [/]:Zoom  Q:Quit");
+    attroff(A_DIM);
+}
+
+/*
+ * clamp - Constrain a value to a range
+ *
+ * Returns min if value < min, max if value > max, else value.
+ * This is a common utility for parameter validation.
+ */
+static double clamp(double value, double min, double max) {
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+}
+
+/*
+ * main - Program entry point
+ *
+ * Main loop structure:
+ * 1. Parse command-line arguments
+ * 2. Initialize terminal and create starfield
+ * 3. Main loop:
+ *    a. Calculate delta time
+ *    b. Handle keyboard input
+ *    c. Update starfield (apply effect)
+ *    d. Render to frame buffer
+ *    e. Display frame buffer
+ *    f. Sleep to maintain target FPS
+ * 4. Clean up and exit
+ */
 int main(int argc, char *argv[]) {
-    (void)argc;
-    (void)argv;
+    /* Configuration with defaults */
+    size_t star_count = DEFAULT_STAR_COUNT;
+    double speed = DEFAULT_SPEED;
+    double zoom = DEFAULT_ZOOM;
+    int effect = DEFAULT_EFFECT;
 
-    // Seed random
-    srand(time(NULL));
+    /* Parse command-line arguments */
+    int opt;
+    int option_index = 0;
 
-    // Initialize subsystems
+    while ((opt = getopt_long(argc, argv, "s:p:e:z:h", long_options, &option_index)) != -1) {
+        switch (opt) {
+            case 's':
+                star_count = (size_t)atoi(optarg);
+                if (star_count < 10) star_count = 10;
+                if (star_count > 5000) star_count = 5000;
+                break;
+            case 'p':
+                speed = atof(optarg);
+                speed = clamp(speed, 0.1, 5.0);
+                break;
+            case 'e':
+                effect = parse_effect(optarg);
+                if (effect < 0) {
+                    fprintf(stderr, "Unknown effect: %s\n", optarg);
+                    print_usage(argv[0]);
+                    return EXIT_FAILURE;
+                }
+                break;
+            case 'z':
+                zoom = atof(optarg);
+                zoom = clamp(zoom, 10.0, 200.0);
+                break;
+            case 'h':
+                print_usage(argv[0]);
+                return EXIT_SUCCESS;
+            default:
+                print_usage(argv[0]);
+                return EXIT_FAILURE;
+        }
+    }
+
+    /* Initialize terminal (ncurses) */
     if (!terminal_init()) {
         fprintf(stderr, "Failed to initialize terminal\n");
         return EXIT_FAILURE;
     }
 
-    // Initialize gamepad system
-    if (!gamepad_init()) {
-        // Joysticks are optional - continue without them
-    }
-
-    // Initialize game state
-    GameState game_state;
-    modes_init_game_state(&game_state);
-
-    // Training session (allocated when needed)
-    TrainingSession training;
-    game_state.training = &training;
-
-    // Skeet session (allocated when needed)
-    SkeetSession skeet;
-    game_state.skeet = &skeet;
-
-    // Create starfield
-    Starfield *field = starfield_create(DEFAULT_STAR_COUNT);
-    if (!field) {
-        fprintf(stderr, "Failed to create starfield\n");
-        terminal_cleanup();
-        return EXIT_FAILURE;
-    }
-
-    // Set to LINEAR effect for classic space flight feel
-    field->effect_mode = EFFECT_LINEAR;
-    field->speed = 1.0;
-    field->zoom = 50.0;
-
-    // Create player ships
-    Ship3D player1;
-    ship_init(&player1, 0, 0.0, 0.0, 0.0);
-
-    Ship3D player2;
-    ship_init(&player2, 1, 50.0, 30.0, 0.0);
-
-    // Set up control modes based on available devices
-    player1.joystick_id = -1;  // Default to keyboard
-    player2.joystick_id = -1;
-
-    int joy_count = gamepad_count();
-    if (joy_count >= 1) {
-        player1.joystick_id = 0;
-        player1.control_mode = CONTROL_JOYSTICK;
-    } else {
-        player1.control_mode = CONTROL_KEYBOARD;
-    }
-
-    if (joy_count >= 2) {
-        player2.joystick_id = 1;
-        player2.control_mode = CONTROL_JOYSTICK;
-    } else {
-        player2.control_mode = CONTROL_KEYBOARD;
-    }
-
-    // AI mode removed - now using player2->control_mode directly
-
-    // Create weapons system
-    WeaponsSystem weapons;
-    weapons_init(&weapons);
-
-    // Create frame buffer
+    /* Get terminal dimensions */
     int width, height;
     terminal_get_size(&width, &height);
-    FrameBuffer *fb = framebuffer_create(width, height);
-    if (!fb) {
-        fprintf(stderr, "Failed to create frame buffer\n");
-        starfield_destroy(field);
+
+    /* Create starfield with specified parameters */
+    Starfield *field = starfield_create(star_count);
+    if (!field) {
         terminal_cleanup();
+        fprintf(stderr, "Failed to create starfield\n");
         return EXIT_FAILURE;
     }
 
-    // Main flight loop
+    /* Apply command-line parameters */
+    field->speed = speed;
+    field->zoom = zoom;
+    field->effect_mode = effect;
+
+    /* Create frame buffer for double-buffered rendering */
+    FrameBuffer *fb = framebuffer_create(width, height);
+    if (!fb) {
+        starfield_destroy(field);
+        terminal_cleanup();
+        fprintf(stderr, "Failed to create frame buffer\n");
+        return EXIT_FAILURE;
+    }
+
+    /*
+     * Main loop
+     *
+     * We use a simple fixed-timestep loop with sleep for frame pacing.
+     * For more accurate timing, consider using clock_gettime() with
+     * CLOCK_MONOTONIC for delta calculation.
+     */
     bool running = true;
     struct timespec last_time, current_time;
     clock_gettime(CLOCK_MONOTONIC, &last_time);
 
-    double orbit_angle = 0.0;
-    int frame_count = 0;  // For blinking effects
-
     while (running) {
-        frame_count++;
-        if (frame_count > 1000) frame_count = 0;  // Prevent overflow
-        // Calculate delta time
+        /* Calculate delta time (time since last frame) */
         clock_gettime(CLOCK_MONOTONIC, &current_time);
         double delta_time = (current_time.tv_sec - last_time.tv_sec) +
                            (current_time.tv_nsec - last_time.tv_nsec) / 1e9;
         last_time = current_time;
 
-        // Handle terminal resize
+        /* Handle terminal resize */
         terminal_handle_resize();
         terminal_get_size(&width, &height);
 
-        // Handle menu input if menu is shown
-        if (game_state.show_menu) {
-            timeout(0);
-            int key = getch();
-            if (key != ERR) {
-                if (modes_handle_menu_input(key, &game_state.menu_selection, &game_state.mode)) {
-                    // Mode selected, initialize game
-                    game_state.show_menu = false;
-                    modes_setup_players(&game_state, &player1, &player2);
-
-                    if (game_state.mode == MODE_TRAINING) {
-                        modes_init_training(&training);
-                    } else if (game_state.mode == MODE_SKEET) {
-                        modes_init_skeet(&skeet);
-                    }
-                }
-            }
-        } else {
-            // Update gamepad states
-            gamepad_update();
-
-            // Handle keyboard input
-            process_keyboard_input(&player1, &player2, field, &weapons, &game_state, delta_time, &running);
-
-            // Handle joystick input for player 1
-            if (player1.control_mode == CONTROL_JOYSTICK && player1.joystick_id >= 0) {
-                JoystickState *joy1 = gamepad_get_state(player1.joystick_id);
-                if (joy1) {
-                    TrainingSession *training_ptr = (game_state.mode == MODE_TRAINING) ? &training : NULL;
-                    process_joystick_input(&player1, joy1, &weapons, delta_time, training_ptr);
-                }
-            }
-
-            // Handle joystick input for player 2
-            if (player2.control_mode == CONTROL_JOYSTICK && player2.joystick_id >= 0 && player2.active) {
-                JoystickState *joy2 = gamepad_get_state(player2.joystick_id);
-                if (joy2) {
-                    process_joystick_input(&player2, joy2, &weapons, delta_time, NULL);
-                }
+        /* Recreate frame buffer if size changed */
+        if (width != fb->width || height != fb->height) {
+            framebuffer_destroy(fb);
+            fb = framebuffer_create(width, height);
+            if (!fb) {
+                running = false;
+                continue;
             }
         }
 
-        // Update player 1 physics (user controlled)
-        ship_update(&player1, delta_time);
+        /*
+         * Non-blocking keyboard input
+         *
+         * timeout(0) makes getch() return immediately with ERR if no key.
+         * This allows the animation to continue smoothly.
+         */
+        timeout(0);
+        int key = getch();
 
-        // Update player 2
-        if (player2.control_mode == CONTROL_AI) {
-            // AI mode - simple orbital motion
-            double orbit_radius = 50.0;
-            double orbit_speed = 0.5;  // radians per second
-            orbit_angle += orbit_speed * delta_time;
+        if (key != ERR) {
+            switch (key) {
+                /* Quit */
+                case 'q':
+                case 'Q':
+                case 27:  /* ESC */
+                    running = false;
+                    break;
 
-            // Circular orbit in XY plane, bobbing in Z
-            player2.x = cos(orbit_angle) * orbit_radius;
-            player2.y = sin(orbit_angle) * orbit_radius;
-            player2.z = sin(orbit_angle * 0.5) * 20.0;  // Bob up and down
+                /* Cycle effects with Tab */
+                case '\t':
+                    field->effect_mode = (field->effect_mode + 1) % EFFECT_COUNT;
+                    break;
 
-            // Face direction of motion
-            player2.yaw = orbit_angle + M_PI / 2.0;
-            player2.pitch = sin(orbit_angle * 0.5) * 0.3;  // Slight pitch variation
-        } else {
-            // Manual control - update physics normally
-            ship_update(&player2, delta_time);
+                /* Direct effect selection with number keys */
+                case '1': field->effect_mode = EFFECT_LINEAR; break;
+                case '2': field->effect_mode = EFFECT_SPIRAL; break;
+                case '3': field->effect_mode = EFFECT_WARP; break;
+                case '4': field->effect_mode = EFFECT_TUNNEL; break;
+                case '5': field->effect_mode = EFFECT_EXPLODE; break;
+                case '6': field->effect_mode = EFFECT_WAVE; break;
+
+                /* Speed control */
+                case '+':
+                case '=':  /* Unshifted + on most keyboards */
+                    field->speed = clamp(field->speed + 0.1, 0.1, 5.0);
+                    break;
+                case '-':
+                case '_':
+                    field->speed = clamp(field->speed - 0.1, 0.1, 5.0);
+                    break;
+
+                /* Zoom control */
+                case '[':
+                    field->zoom = clamp(field->zoom - 5.0, 10.0, 200.0);
+                    break;
+                case ']':
+                    field->zoom = clamp(field->zoom + 5.0, 10.0, 200.0);
+                    break;
+            }
         }
 
-        // Update camera to follow player 1
-        ship_update_camera(&player1, &field->camera);
-
-        // Update starfield (apply effects)
+        /* Update starfield (apply current effect) */
         starfield_update(field, delta_time);
 
-        // Update weapons system (missiles and explosions)
-        weapons_update(&weapons, delta_time);
-
-        // Update training mode if active
-        if (game_state.mode == MODE_TRAINING) {
-            modes_update_training(&training, &weapons, delta_time);
-        }
-
-        // Update skeet mode if active
-        if (game_state.mode == MODE_SKEET) {
-            modes_update_skeet(&skeet, &weapons, delta_time);
-        }
-
-        // Render
+        /* Render to frame buffer */
         framebuffer_clear(fb);
-
-        if (game_state.show_menu) {
-            // Show menu instead of game
-            modes_render_menu(fb, game_state.menu_selection);
-        } else {
-            // Render based on game mode
-            if (game_state.mode == MODE_SKEET) {
-                // Skeet mode: render horizon instead of starfield
-                render_horizon(fb);
-                render_target_circle(fb);
-
-                // Render clay pigeons
-                modes_render_clay_pigeons(fb, &skeet, &field->camera, field->zoom);
-            } else {
-                // Normal game rendering with starfield
-                render_starfield(fb, field);
-
-                // Render player 2 ship in 3D space (if active)
-                if (player2.active) {
-                    render_ship_3d(fb, &player2, &field->camera, field->zoom);
-                }
-            }
-
-            // Render training targets if in training mode
-            if (game_state.mode == MODE_TRAINING) {
-                for (int i = 0; i < MAX_TRAINING_TARGETS; i++) {
-                    TrainingTarget *t = &training.targets[i];
-                    if (t->active) {
-                        // Render target as a ship-like object
-                        // Calculate screen position
-                        double dx = t->x - field->camera.pos_x;
-                        double dy = t->y - field->camera.pos_y;
-                        double dz = t->z - field->camera.pos_z;
-
-                        // Simple perspective projection
-                        if (dz > 1.0) {
-                            int sx = width / 2 + (int)(dx * field->zoom / dz);
-                            int sy = height / 2 + (int)(dy * field->zoom / dz);
-
-                            if (sx >= 0 && sx < width && sy >= 0 && sy < height) {
-                                fb->buffer[sy * width + sx] = t->character;
-                                fb->colors[sy * width + sx] = t->color;
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Render weapons (missiles and explosions)
-            render_weapons(fb, &weapons, &field->camera, field->zoom);
-        }
-
+        render_starfield(fb, field);
         framebuffer_display(fb);
 
-        if (!game_state.show_menu) {
-            // Draw cockpit HUD
-            draw_crosshair(width, height);
-            draw_hud(&player1, &player2, &weapons, width, height, (player2.control_mode == CONTROL_AI), frame_count);
-
-            // Draw advanced HUD elements
-            draw_unit_circle_hud(&player1, width, height);
-
-            if (player2.active) {
-                draw_enemy_direction_indicator(&player1, &player2, &field->camera, width, height, frame_count);
-                draw_radar_overlay(&player1, &player2, &weapons, width, height);
-            }
-
-            // Draw training HUD if in training mode
-            if (game_state.mode == MODE_TRAINING) {
-                modes_render_training_hud(fb, &training);
-            }
-
-            // Draw skeet HUD if in skeet mode
-            if (game_state.mode == MODE_SKEET) {
-                modes_render_skeet_hud(fb, &skeet);
-            }
-        }
-
+        /* Draw HUD overlay (directly to ncurses, on top of frame buffer) */
+        draw_hud(field, width, height);
         refresh();
 
-        // Frame timing
+        /* Sleep to maintain target frame rate */
         usleep(FRAME_TIME_US);
     }
 
-    // Cleanup
-    gamepad_cleanup();
+    /* Clean up resources */
     framebuffer_destroy(fb);
     starfield_destroy(field);
     terminal_cleanup();
 
     return EXIT_SUCCESS;
-}
-
-static void draw_crosshair(int width, int height) {
-    int center_x = width / 2;
-    int center_y = height / 2;
-
-    // Simple crosshair
-    attron(COLOR_PAIR(4) | A_BOLD);  // Yellow
-    mvaddch(center_y, center_x, '+');
-    mvaddch(center_y, center_x - 1, '-');
-    mvaddch(center_y, center_x + 1, '-');
-    mvaddch(center_y - 1, center_x, '|');
-    mvaddch(center_y + 1, center_x, '|');
-    attroff(COLOR_PAIR(4) | A_BOLD);
-}
-
-static void draw_hud(const Ship3D *player1, const Ship3D *player2, const WeaponsSystem *weapons, int width, int height, bool ai_mode, int frame_count);
-static void draw_hud_impl(const Ship3D *player1, const Ship3D *player2, const WeaponsSystem *weapons, int width, int height, bool ai_mode, int frame_count);
-
-static void draw_hud(const Ship3D *player1, const Ship3D *player2, const WeaponsSystem *weapons, int width, int height, bool ai_mode, int frame_count) {
-    draw_hud_impl(player1, player2, weapons, width, height, ai_mode, frame_count);
-}
-
-static void draw_hud_impl(const Ship3D *player1, const Ship3D *player2, const WeaponsSystem *weapons, int width, int height, bool ai_mode, int frame_count) {
-    (void)frame_count;  // Will use later for blinking effects
-    if (!player1) {
-        return;
-    }
-
-    double speed = ship_get_speed(player1);
-
-    // Top left: Speed and health
-    attron(COLOR_PAIR(1) | A_BOLD);
-    mvprintw(0, 2, "SPEED: %.0f m/s", speed);
-    attroff(COLOR_PAIR(1) | A_BOLD);
-
-    mvprintw(1, 2, "HEALTH: ");
-    for (int i = 0; i < player1->health; i++) {
-        addch('*');
-    }
-
-    // Top right: View mode
-    const char *view_name = (player1->view_mode == VIEW_COCKPIT) ? "COCKPIT" : "CHASE";
-    attron(COLOR_PAIR(2));
-    mvprintw(0, width - 15, "VIEW: %s", view_name);
-    attroff(COLOR_PAIR(2));
-
-    // Enemy distance indicator
-    if (player2) {
-        double dx = player2->x - player1->x;
-        double dy = player2->y - player1->y;
-        double dz = player2->z - player1->z;
-        double distance = sqrt(dx*dx + dy*dy + dz*dz);
-
-        attron(COLOR_PAIR(2) | A_BOLD);
-        mvprintw(2, 2, "ENEMY: %.0fm", distance);
-        attroff(COLOR_PAIR(2) | A_BOLD);
-    }
-
-    // AI mode indicator
-    attron(COLOR_PAIR(3));
-    mvprintw(2, width - 20, "P2: %s", ai_mode ? "AI" : "MANUAL");
-    attroff(COLOR_PAIR(3));
-
-    // Position (debug info)
-    mvprintw(3, 2, "POS: (%.0f, %.0f, %.0f)", player1->x, player1->y, player1->z);
-
-    // Weapons info - top left below health
-    if (weapons) {
-        int missiles = weapons_get_missiles_remaining(weapons, player1->player_id);
-        attron(COLOR_PAIR(4) | A_BOLD);
-        mvprintw(4, 2, "MISSILES: %d", missiles);
-        attroff(COLOR_PAIR(4) | A_BOLD);
-
-        // Fire cooldown indicator
-        if (weapons->fire_cooldown[player1->player_id] > 0.0) {
-            attron(COLOR_PAIR(3));
-            mvprintw(4, 18, "[RELOADING]");
-            attroff(COLOR_PAIR(3));
-        } else if (missiles >= 2) {
-            attron(COLOR_PAIR(1) | A_BOLD);
-            mvprintw(4, 18, "[READY]");
-            attroff(COLOR_PAIR(1) | A_BOLD);
-        }
-    }
-
-    // Targeting reticle label
-    attron(COLOR_PAIR(4));
-    mvprintw(height / 2 - 2, width / 2 - 4, "TARGET");
-    attroff(COLOR_PAIR(4));
-
-    // Bottom: Controls
-    attron(A_BOLD);
-    mvprintw(height - 1, 2, "P1:WASD+q/e+Space+F | P2:Arrows+</>+Enter | V:View B:AI SHIFT+Q/ESC:Quit");
-    attroff(A_BOLD);
-}
-
-// Calculate target point in 3D space from ship's perspective
-// This represents where the center crosshair is pointing in 3D space
-static void calculate_target_point(const Ship3D *ship, double *target_x, double *target_y, double *target_z) {
-    if (!ship || !target_x || !target_y || !target_z) {
-        return;
-    }
-
-    // Get ship's forward vector
-    double forward_x, forward_y, forward_z;
-    ship_get_forward_vector(ship, &forward_x, &forward_y, &forward_z);
-
-    // Target is at a fixed distance in front of ship
-    double target_distance = 100.0;  // Distance to target point
-
-    *target_x = ship->x + forward_x * target_distance;
-    *target_y = ship->y + forward_y * target_distance;
-    *target_z = ship->z + forward_z * target_distance;
-}
-
-// Draw unit circle HUD showing 6 degrees of freedom
-// Positioned about 1/3 from center on the right side
-static void draw_unit_circle_hud(const Ship3D *ship, int width, int height) {
-    if (!ship) {
-        return;
-    }
-
-    // Position: right side, about 1/3 from center
-    int circle_center_x = width * 2 / 3;
-    int circle_center_y = height / 2;
-    int circle_radius = 8;  // Radius in character cells
-
-    // Draw circle using ASCII art
-    attron(COLOR_PAIR(2));  // Cyan
-    for (int angle = 0; angle < 360; angle += 10) {
-        double rad = angle * M_PI / 180.0;
-        int x = circle_center_x + (int)(cos(rad) * circle_radius);
-        int y = circle_center_y + (int)(sin(rad) * circle_radius * 0.5);  // Half height for terminal aspect
-        if (x >= 0 && x < width && y >= 0 && y < height) {
-            mvaddch(y, x, '.');
-        }
-    }
-    attroff(COLOR_PAIR(2));
-
-    // Draw center crosshair
-    mvaddch(circle_center_y, circle_center_x, '+');
-
-    // Convert angles to degrees for display
-    double pitch_deg = ship->pitch * 180.0 / M_PI;
-    double yaw_deg = ship->yaw * 180.0 / M_PI;
-    double roll_deg = ship->roll * 180.0 / M_PI;
-
-    // Draw 6 DOF information around the circle
-    attron(COLOR_PAIR(1) | A_BOLD);  // White bold
-
-    // Top: Pitch
-    mvprintw(circle_center_y - circle_radius - 2, circle_center_x - 6, "P:%.1f", pitch_deg);
-
-    // Right: Yaw
-    mvprintw(circle_center_y, circle_center_x + circle_radius + 2, "Y:%.1f", yaw_deg);
-
-    // Bottom: Roll
-    mvprintw(circle_center_y + circle_radius / 2 + 2, circle_center_x - 6, "R:%.1f", roll_deg);
-
-    attroff(COLOR_PAIR(1) | A_BOLD);
-
-    // Velocity indicators (left side)
-    attron(COLOR_PAIR(2));  // Cyan
-    mvprintw(circle_center_y - 2, circle_center_x - circle_radius - 10, "VX:%.1f", ship->velocity_x);
-    mvprintw(circle_center_y - 1, circle_center_x - circle_radius - 10, "VY:%.1f", ship->velocity_y);
-    mvprintw(circle_center_y, circle_center_x - circle_radius - 10, "VZ:%.1f", ship->velocity_z);
-    attroff(COLOR_PAIR(2));
-
-    // Draw attitude indicator (pitch/roll visualization)
-    // Draw horizon line based on pitch
-    double horizon_offset = sin(ship->pitch) * 3.0;
-    int horizon_y = circle_center_y + (int)horizon_offset;
-
-    attron(COLOR_PAIR(4));  // Yellow
-    for (int dx = -circle_radius; dx <= circle_radius; dx++) {
-        int x = circle_center_x + dx;
-        if (x >= 0 && x < width && horizon_y >= 0 && horizon_y < height) {
-            // Check if within circle
-            double dist = sqrt(dx * dx * 4.0 + horizon_offset * horizon_offset);
-            if (dist <= circle_radius) {
-                mvaddch(horizon_y, x, '-');
-            }
-        }
-    }
-    attroff(COLOR_PAIR(4));
-
-    // Draw title
-    attron(COLOR_PAIR(1) | A_BOLD);
-    mvprintw(circle_center_y - circle_radius - 3, circle_center_x - 3, "6-DOF");
-    attroff(COLOR_PAIR(1) | A_BOLD);
-}
-
-// Draw enemy direction indicator (blinking red X)
-static void draw_enemy_direction_indicator(const Ship3D *player, const Ship3D *enemy,
-                                           const Camera *camera, int width, int height,
-                                           int frame_count) {
-    if (!player || !enemy || !camera || !enemy->active) {
-        return;
-    }
-
-    // Blink every 15 frames (at 60fps = 4 times per second)
-    bool show = (frame_count % 15) < 10;
-    if (!show) {
-        return;
-    }
-
-    // Calculate enemy direction vector in world space
-    double dx = enemy->x - player->x;
-    double dy = enemy->y - player->y;
-    double dz = enemy->z - player->z;
-
-    // Transform to camera space (same as render_ship_3d)
-    // Apply camera yaw rotation
-    double cos_yaw = cos(-camera->yaw);
-    double sin_yaw = sin(-camera->yaw);
-    double view_x = dx * cos_yaw - dz * sin_yaw;
-    double view_z = dx * sin_yaw + dz * cos_yaw;
-
-    // Apply pitch rotation
-    double cos_pitch = cos(-camera->pitch);
-    double sin_pitch = sin(-camera->pitch);
-    double temp_z = view_z * cos_pitch - dy * sin_pitch;
-    double view_y = view_z * sin_pitch + dy * cos_pitch;
-    view_z = temp_z;
-
-    // Apply roll rotation
-    double cos_roll = cos(-camera->roll);
-    double sin_roll = sin(-camera->roll);
-    double temp_x = view_x * cos_roll - view_y * sin_roll;
-    view_y = view_x * sin_roll + view_y * cos_roll;
-    view_x = temp_x;
-
-    // Normalize to edge of screen
-    double distance = sqrt(view_x * view_x + view_y * view_y + view_z * view_z);
-    if (distance < 0.1) {
-        return;  // Enemy too close
-    }
-
-    // Project direction onto screen edges
-    int center_x = width / 2;
-    int center_y = height / 2;
-
-    // Calculate screen position (clamped to edges)
-    double scale = 50.0;  // Arbitrary scale for edge indicators
-    int screen_x = center_x + (int)(view_x * scale / (fabs(view_z) + 1.0));
-    int screen_y = center_y + (int)(view_y * scale / (fabs(view_z) + 1.0));
-
-    // Clamp to screen edges with margin
-    int margin = 3;
-    if (screen_x < margin) screen_x = margin;
-    if (screen_x >= width - margin) screen_x = width - margin - 1;
-    if (screen_y < margin) screen_y = margin;
-    if (screen_y >= height - margin) screen_y = height - margin - 1;
-
-    // Draw red X indicator
-    attron(COLOR_PAIR(3) | A_BOLD);  // Use color pair 3 for enemy (we'll need to check if this is red)
-    mvaddch(screen_y, screen_x, 'X');
-    mvaddch(screen_y - 1, screen_x - 1, '\\');
-    mvaddch(screen_y - 1, screen_x + 1, '/');
-    mvaddch(screen_y + 1, screen_x - 1, '/');
-    mvaddch(screen_y + 1, screen_x + 1, '\\');
-    attroff(COLOR_PAIR(3) | A_BOLD);
-
-    // Add "ENEMY" label if enemy is behind
-    if (view_z < 0) {
-        attron(COLOR_PAIR(3));
-        mvprintw(screen_y - 2, screen_x - 3, "BEHIND");
-        attroff(COLOR_PAIR(3));
-    }
-}
-
-// Draw radar overlay for incoming detection
-static void draw_radar_overlay(const Ship3D *player, const Ship3D *enemy,
-                               const WeaponsSystem *weapons, int width, int height) {
-    if (!player || !weapons) {
-        return;
-    }
-
-    // Radar position: bottom right corner
-    int radar_x = width - 22;
-    int radar_y = height - 12;
-    int radar_size = 9;  // 9x9 grid
-
-    // Draw radar border
-    attron(COLOR_PAIR(2));  // Cyan
-    mvprintw(radar_y - 1, radar_x, "+---RADAR---+");
-    for (int i = 0; i < radar_size; i++) {
-        mvaddch(radar_y + i, radar_x, '|');
-        mvaddch(radar_y + i, radar_x + 13, '|');
-    }
-    mvprintw(radar_y + radar_size, radar_x, "+----------+");
-    attroff(COLOR_PAIR(2));
-
-    // Draw radar grid
-    int radar_center_x = radar_x + 7;
-    int radar_center_y = radar_y + radar_size / 2;
-
-    attron(COLOR_PAIR(2));
-    // Crosshairs
-    for (int i = 0; i < radar_size; i++) {
-        mvaddch(radar_y + i, radar_center_x, '|');
-        mvaddch(radar_center_y, radar_x + 2 + i, '-');
-    }
-    mvaddch(radar_center_y, radar_center_x, '+');
-    attroff(COLOR_PAIR(2));
-
-    // Player is always at center
-    attron(COLOR_PAIR(1) | A_BOLD);
-    mvaddch(radar_center_y, radar_center_x, '@');
-    attroff(COLOR_PAIR(1) | A_BOLD);
-
-    // Draw enemy on radar if present
-    if (enemy && enemy->active) {
-        double dx = enemy->x - player->x;
-        double dy = enemy->y - player->y;
-        double dz = enemy->z - player->z;
-
-        // Scale to radar
-        double radar_scale = 0.08;
-        int enemy_rx = radar_center_x + (int)(dx * radar_scale);
-        int enemy_ry = radar_center_y + (int)(dy * radar_scale);
-
-        // Clamp to radar bounds
-        if (enemy_rx >= radar_x + 2 && enemy_rx < radar_x + 12 &&
-            enemy_ry >= radar_y && enemy_ry < radar_y + radar_size) {
-
-            // Color based on Z distance
-            if (dz > 10) {
-                attron(COLOR_PAIR(3));  // Far ahead
-            } else if (dz < -10) {
-                attron(COLOR_PAIR(4));  // Behind
-            } else {
-                attron(COLOR_PAIR(2));  // Same plane
-            }
-            mvaddch(enemy_ry, enemy_rx, 'E');
-            attroff(COLOR_PAIR(3) | COLOR_PAIR(4) | COLOR_PAIR(2));
-        }
-    }
-
-    // Draw incoming missiles on radar
-    attron(COLOR_PAIR(3));  // Enemy missiles in red
-    for (int i = 0; i < MAX_MISSILES; i++) {
-        const Missile *m = &weapons->missiles[i];
-        if (!m->active || m->owner_id == player->player_id) {
-            continue;  // Only show enemy missiles
-        }
-
-        double dx = m->x - player->x;
-        double dy = m->y - player->y;
-
-        double radar_scale = 0.08;
-        int m_rx = radar_center_x + (int)(dx * radar_scale);
-        int m_ry = radar_center_y + (int)(dy * radar_scale);
-
-        if (m_rx >= radar_x + 2 && m_rx < radar_x + 12 &&
-            m_ry >= radar_y && m_ry < radar_y + radar_size) {
-            mvaddch(m_ry, m_rx, '*');
-        }
-    }
-    attroff(COLOR_PAIR(3));
-
-    // Distance scale indicator
-    attron(COLOR_PAIR(2));
-    mvprintw(radar_y + radar_size + 1, radar_x + 2, "50u/div");
-    attroff(COLOR_PAIR(2));
-}
-
-// Process joystick input for a ship
-static void process_joystick_input(Ship3D *ship, JoystickState *joy, WeaponsSystem *weapons, double dt, TrainingSession *training) {
-    if (!ship || !joy) return;
-
-    // Left stick: pitch and yaw
-    float pitch_input = joy->axis_left_y;
-    float yaw_input = joy->axis_left_x;
-
-    if (pitch_input < -0.1) {
-        ship_pitch_down(ship, dt * fabs(pitch_input));
-    } else if (pitch_input > 0.1) {
-        ship_pitch_up(ship, dt * fabs(pitch_input));
-    }
-
-    if (yaw_input < -0.1) {
-        ship_yaw_left(ship, dt * fabs(yaw_input));
-    } else if (yaw_input > 0.1) {
-        ship_yaw_right(ship, dt * fabs(yaw_input));
-    }
-
-    // Right stick or triggers: roll
-    float roll_input = joy->axis_right_x;
-    if (roll_input < -0.1) {
-        ship_roll_left(ship, dt * fabs(roll_input));
-    } else if (roll_input > 0.1) {
-        ship_roll_right(ship, dt * fabs(roll_input));
-    }
-
-    // Use shoulder buttons for roll if right stick not available
-    if (joy->buttons[BUTTON_LB]) {
-        ship_roll_left(ship, dt);
-    }
-    if (joy->buttons[BUTTON_RB]) {
-        ship_roll_right(ship, dt);
-    }
-
-    // Triggers or A button: thrust
-    float thrust_input = joy->trigger_right;
-    if (thrust_input > 0.1 || joy->buttons[BUTTON_A]) {
-        ship_thrust(ship, 1.0);
-    }
-
-    // Fire weapon (X button)
-    if (joy->buttons[BUTTON_X] && weapons) {
-        if (weapons_can_fire(weapons, ship->player_id)) {
-            double target_x, target_y, target_z;
-            calculate_target_point(ship, &target_x, &target_y, &target_z);
-            weapons_fire(weapons, ship, target_x, target_y, target_z);
-
-            // Track shots fired in training mode
-            if (training) {
-                training->shots_fired++;
-            }
-
-            // Rumble feedback
-            gamepad_rumble(ship->joystick_id, 0.5f, 100);
-        }
-    }
-
-    // View toggle (Y button) - track state per player to avoid conflicts
-    static bool y_button_prev[2] = {false, false};
-    int player_idx = (ship->joystick_id >= 0 && ship->joystick_id < 2) ? ship->joystick_id : 0;
-    if (joy->buttons[BUTTON_Y] && !y_button_prev[player_idx]) {
-        ship_toggle_view(ship);
-    }
-    y_button_prev[player_idx] = joy->buttons[BUTTON_Y];
-}
-
-// Process keyboard input
-static void process_keyboard_input(Ship3D *player1, Ship3D *player2, Starfield *field,
-                                   WeaponsSystem *weapons, GameState *state, double dt, bool *running) {
-    timeout(0);
-    int key = getch();
-
-    if (key == ERR) return;
-
-    // Global controls
-    switch (key) {
-        case 'Q':  // Uppercase Q
-        case 27:   // ESC
-            *running = false;
-            return;
-
-        case '[':
-            field->speed *= 0.8;
-            if (field->speed < 0.1) field->speed = 0.1;
-            return;
-
-        case ']':
-            field->speed *= 1.2;
-            if (field->speed > 5.0) field->speed = 5.0;
-            return;
-
-        case '\t':  // Tab - cycle effects
-            field->effect_mode = (field->effect_mode + 1) % EFFECT_COUNT;
-            return;
-
-        case 'b':
-        case 'B':
-            // Toggle AI mode for player 2 (legacy support)
-            if (player2->control_mode == CONTROL_KEYBOARD) {
-                player2->control_mode = CONTROL_AI;
-                player2->ai_behavior = AI_ORBITAL;
-            } else if (player2->control_mode == CONTROL_AI) {
-                player2->control_mode = CONTROL_KEYBOARD;
-            }
-            return;
-
-        case 'm':
-        case 'M':
-            // Return to menu
-            state->show_menu = true;
-            return;
-    }
-
-    // Training mode specific controls
-    if (state->mode == MODE_TRAINING && state->training) {
-        switch (key) {
-            case '1':
-                modes_spawn_training_targets(state->training, PATTERN_STATIC_GRID);
-                return;
-            case '2':
-                modes_spawn_training_targets(state->training, PATTERN_MOVING_LINE);
-                return;
-            case '3':
-                modes_spawn_training_targets(state->training, PATTERN_ORBITING);
-                return;
-            case '4':
-                modes_spawn_training_targets(state->training, PATTERN_RANDOM);
-                return;
-            case 'r':
-            case 'R':
-                modes_init_training(state->training);
-                return;
-        }
-    }
-
-    // Player 1 controls (if using keyboard)
-    if (player1->control_mode == CONTROL_KEYBOARD) {
-        switch (key) {
-            case 'w':
-            case 'W':
-                ship_pitch_down(player1, dt);
-                break;
-            case 's':
-            case 'S':
-                ship_pitch_up(player1, dt);
-                break;
-            case 'a':
-            case 'A':
-                ship_yaw_left(player1, dt);
-                break;
-            case 'd':
-            case 'D':
-                ship_yaw_right(player1, dt);
-                break;
-            case 'q':
-                ship_roll_left(player1, dt);
-                break;
-            case 'e':
-            case 'E':
-                ship_roll_right(player1, dt);
-                break;
-            case ' ':
-                ship_thrust(player1, 1.0);
-                break;
-            case 'f':
-            case 'F':
-                if (weapons_can_fire(weapons, player1->player_id)) {
-                    double target_x, target_y, target_z;
-                    calculate_target_point(player1, &target_x, &target_y, &target_z);
-                    weapons_fire(weapons, player1, target_x, target_y, target_z);
-
-                    if (state->mode == MODE_TRAINING && state->training) {
-                        state->training->shots_fired++;
-                    }
-                }
-                break;
-            case 'v':
-            case 'V':
-                ship_toggle_view(player1);
-                break;
-        }
-    }
-
-    // Player 2 controls (if using keyboard and not AI)
-    if (player2->control_mode == CONTROL_KEYBOARD && player2->active) {
-        switch (key) {
-            case KEY_UP:
-                ship_pitch_down(player2, dt);
-                break;
-            case KEY_DOWN:
-                ship_pitch_up(player2, dt);
-                break;
-            case KEY_LEFT:
-                ship_yaw_left(player2, dt);
-                break;
-            case KEY_RIGHT:
-                ship_yaw_right(player2, dt);
-                break;
-            case ',':
-            case '<':
-                ship_roll_left(player2, dt);
-                break;
-            case '.':
-            case '>':
-                ship_roll_right(player2, dt);
-                break;
-            case '\n':
-            case '\r':
-            case KEY_ENTER:
-                ship_thrust(player2, 1.0);
-                break;
-        }
-    }
 }

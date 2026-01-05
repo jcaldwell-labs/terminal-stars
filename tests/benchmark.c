@@ -1,7 +1,10 @@
 /*
  * Performance Benchmark Suite for Terminal Stars
  *
- * Measures rendering performance, physics calculations, and frame rates
+ * Measures rendering performance for the educational starfield visualizer.
+ * Tests: starfield creation, updates, frame buffer operations, and rendering.
+ *
+ * Run with: make benchmark
  */
 
 #include <stdio.h>
@@ -10,18 +13,27 @@
 #include <sys/time.h>
 #include "../include/starfield.h"
 #include "../include/render.h"
-#include "../include/ship.h"
 #include "../include/types.h"
 
-// Get current time in seconds with microsecond precision
-double get_time() {
+/*
+ * get_time - Get current time with microsecond precision
+ *
+ * Returns the current time as a double (seconds.microseconds).
+ * This is more precise than time() for benchmarking short operations.
+ */
+double get_time(void) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return tv.tv_sec + tv.tv_usec / 1000000.0;
 }
 
-// Benchmark starfield creation
-void benchmark_starfield_creation() {
+/*
+ * benchmark_starfield_creation - Measure starfield allocation time
+ *
+ * Tests how long it takes to create and destroy starfields of various sizes.
+ * Important for understanding startup overhead.
+ */
+void benchmark_starfield_creation(void) {
     printf("Benchmarking starfield creation...\n");
 
     int star_counts[] = {100, 500, 1000, 5000, 10000};
@@ -37,20 +49,25 @@ void benchmark_starfield_creation() {
         }
 
         double end = get_time();
-        double avg_time = ((end - start) / iterations) * 1000.0; // Convert to ms
+        double avg_time = ((end - start) / iterations) * 1000.0;
 
         printf("  %5d stars: %7.3f ms/creation\n", count, avg_time);
     }
     printf("\n");
 }
 
-// Benchmark starfield updates
-void benchmark_starfield_update() {
+/*
+ * benchmark_starfield_update - Measure effect update performance
+ *
+ * Tests how fast the starfield can be updated (applying effects).
+ * This is called once per frame in the main loop.
+ */
+void benchmark_starfield_update(void) {
     printf("Benchmarking starfield updates...\n");
 
     int star_counts[] = {100, 500, 1000, 5000, 10000};
     int iterations = 1000;
-    double delta_time = 0.016; // 60 FPS
+    double delta_time = 0.016;  /* 60 FPS simulation */
 
     for (int i = 0; i < 5; i++) {
         int count = star_counts[i];
@@ -63,7 +80,7 @@ void benchmark_starfield_update() {
         }
 
         double end = get_time();
-        double avg_time = ((end - start) / iterations) * 1000.0; // Convert to ms
+        double avg_time = ((end - start) / iterations) * 1000.0;
         double fps = 1000.0 / avg_time;
 
         printf("  %5d stars: %7.3f ms/update (%6.1f fps theoretical)\n",
@@ -74,15 +91,20 @@ void benchmark_starfield_update() {
     printf("\n");
 }
 
-// Benchmark frame buffer operations
-void benchmark_framebuffer() {
+/*
+ * benchmark_framebuffer - Measure frame buffer clear performance
+ *
+ * Tests how fast we can clear the frame buffer.
+ * This is called once per frame before rendering.
+ */
+void benchmark_framebuffer(void) {
     printf("Benchmarking frame buffer operations...\n");
 
     int sizes[][2] = {
-        {80, 24},    // Standard
-        {120, 40},   // Medium
-        {160, 50},   // Large
-        {200, 60},   // Very large
+        {80, 24},    /* Standard terminal */
+        {120, 40},   /* Medium terminal */
+        {160, 50},   /* Large terminal */
+        {200, 60},   /* Very large terminal */
     };
     int iterations = 1000;
 
@@ -108,8 +130,13 @@ void benchmark_framebuffer() {
     printf("\n");
 }
 
-// Benchmark rendering starfield to frame buffer
-void benchmark_render_starfield() {
+/*
+ * benchmark_render_starfield - Measure starfield rendering performance
+ *
+ * Tests the complete render pipeline: clear + project all stars to buffer.
+ * This is the most expensive per-frame operation.
+ */
+void benchmark_render_starfield(void) {
     printf("Benchmarking starfield rendering...\n");
 
     int star_counts[] = {100, 500, 1000, 5000};
@@ -141,8 +168,12 @@ void benchmark_render_starfield() {
     printf("\n");
 }
 
-// Benchmark text rendering
-void benchmark_text_rendering() {
+/*
+ * benchmark_text_rendering - Measure text overlay performance
+ *
+ * Tests HUD text rendering speed for various string lengths.
+ */
+void benchmark_text_rendering(void) {
     printf("Benchmarking text rendering...\n");
 
     FrameBuffer *fb = framebuffer_create(120, 40);
@@ -173,8 +204,13 @@ void benchmark_text_rendering() {
     printf("\n");
 }
 
-// Estimate maximum achievable FPS
-void benchmark_full_frame() {
+/*
+ * benchmark_full_frame - Estimate maximum achievable FPS
+ *
+ * Simulates a complete frame cycle without terminal I/O.
+ * Note: Actual FPS will be lower due to terminal display time.
+ */
+void benchmark_full_frame(void) {
     printf("Benchmarking full frame render cycle...\n");
 
     FrameBuffer *fb = framebuffer_create(120, 40);
@@ -185,11 +221,10 @@ void benchmark_full_frame() {
     double start = get_time();
 
     for (int i = 0; i < iterations; i++) {
-        // Full frame cycle
+        /* Full frame cycle (minus terminal display) */
         starfield_update(field, delta_time);
         framebuffer_clear(fb);
         render_starfield(fb, field);
-        // Note: not actually displaying to terminal (would be much slower)
     }
 
     double end = get_time();
@@ -207,14 +242,19 @@ void benchmark_full_frame() {
     printf("\n");
 }
 
-// Main benchmark runner
-int main() {
+/*
+ * main - Benchmark suite entry point
+ *
+ * Runs all benchmarks and reports system information.
+ */
+int main(void) {
     printf("\n");
     printf("========================================\n");
     printf("Terminal Stars - Performance Benchmarks\n");
     printf("========================================\n");
     printf("\n");
 
+    /* Report system info */
     printf("System: ");
     #ifdef __linux__
     printf("Linux\n");
@@ -236,7 +276,7 @@ int main() {
     #endif
     printf("\n");
 
-    // Run all benchmarks
+    /* Run all benchmarks */
     benchmark_starfield_creation();
     benchmark_starfield_update();
     benchmark_framebuffer();

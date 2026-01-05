@@ -1,45 +1,48 @@
+/*
+ * render.h - Frame Buffer Rendering Interface
+ *
+ * This module provides double-buffered rendering for smooth terminal animation.
+ * Instead of writing directly to the screen (which causes flicker), we:
+ * 1. Build the entire frame in a buffer
+ * 2. Display the complete buffer at once
+ *
+ * This is the standard technique for flicker-free terminal graphics.
+ */
+
 #ifndef RENDER_H
 #define RENDER_H
 
 #include "types.h"
 
-// Create frame buffer for rendering
+/*
+ * Frame buffer lifecycle
+ */
+
+// Create a new frame buffer of the given dimensions
+// Returns NULL on allocation failure
 FrameBuffer* framebuffer_create(int width, int height);
 
-// Clear frame buffer
+// Clear the frame buffer (fill with spaces)
+// Call this at the start of each frame
 void framebuffer_clear(FrameBuffer *fb);
 
-// Render starfield to frame buffer
-void render_starfield(FrameBuffer *fb, const Starfield *field);
-
-// Render a ship in 3D space (transformed by camera)
-void render_ship_3d(FrameBuffer *fb, const Ship3D *ship, const Camera *camera, double zoom);
-
-// Render missile in 3D space
-void render_missile(FrameBuffer *fb, const Missile *missile, const Camera *camera, double zoom);
-
-// Render explosion in 3D space
-void render_explosion(FrameBuffer *fb, const Explosion *explosion, const Camera *camera, double zoom);
-
-// Render all weapons (missiles and explosions)
-void render_weapons(FrameBuffer *fb, const WeaponsSystem *weapons, const Camera *camera, double zoom);
-
-// Display frame buffer to terminal
+// Display the frame buffer contents to the terminal
+// Call this after rendering is complete
 void framebuffer_display(const FrameBuffer *fb);
 
-// Render text string at position with color
-void render_text(FrameBuffer *fb, int x, int y, const char *text, int color);
-
-// Render horizon line (for skeet mode)
-void render_horizon(FrameBuffer *fb);
-
-// Render target circle in center of screen (for skeet mode)
-void render_target_circle(FrameBuffer *fb);
-
-// Render clay pigeon in 3D space
-void render_clay_pigeon(FrameBuffer *fb, const ClayPigeon *pigeon, const Camera *camera, double zoom);
-
-// Clean up frame buffer
+// Free frame buffer memory
 void framebuffer_destroy(FrameBuffer *fb);
+
+/*
+ * Rendering functions
+ */
+
+// Render all stars in the starfield to the frame buffer
+// Handles 3D-to-2D projection with camera transformation
+void render_starfield(FrameBuffer *fb, const Starfield *field);
+
+// Render a text string at the given position with color
+// Useful for HUD elements (effect name, controls, etc.)
+void render_text(FrameBuffer *fb, int x, int y, const char *text, int color);
 
 #endif // RENDER_H

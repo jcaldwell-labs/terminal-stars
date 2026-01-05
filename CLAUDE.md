@@ -4,235 +4,208 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Terminal Stars is a **fully implemented** 3D space combat and flight simulator running in the terminal using ncurses. It features 6-DOF physics, multiple game modes, weapons systems, joystick support, and various visual effects. The application has evolved from a simple starfield visualization into a comprehensive flight and combat simulator.
+Terminal Stars is an **educational 3D starfield visualizer** running in the terminal using ncurses. It demonstrates core concepts of terminal graphics programming in clean, well-commented C code (~1,500 lines).
+
+This project is intentionally minimal and focused on teaching. For the complete terminal shader program with flight simulation and combat systems, see [atari-style](https://github.com/jcaldwell-labs/atari-style).
 
 ## Project Status
 
-**FULLY IMPLEMENTED** - This is a mature, production-ready codebase with:
-- ✅ Five complete game modes (Single Player, Dual Player, Co-op, Training, Skeet Shooting)
-- ✅ Full 6-DOF flight physics with realistic momentum and drag
-- ✅ Dual-missile weapons system with collision detection
-- ✅ Advanced HUD with radar, enemy tracking, and tactical displays
-- ✅ USB joystick/gamepad support (up to 2 controllers)
-- ✅ Six starfield visual effects
-- ✅ Horizon rendering for ground-based modes
-- ✅ Frame-buffered 60fps rendering
-- ✅ Comprehensive documentation (FEATURES.md, MODE-GUIDE.md)
+**EDUCATIONAL VISUALIZER** - A clean, focused codebase demonstrating:
 
-## Current Architecture
-
-### Implementation Details
-- **Language**: C (C99 standard)
-- **Rendering**: ncurses with double-buffered frame buffer
-- **Performance**: Target 60 FPS with delta-time physics
-- **Input**: Non-blocking keyboard + SDL2 gamepad support
-- **Build System**: GNU Make with conditional SDL2 linking
-
-### Core Systems
-
-#### Flight Physics (ship.c)
-- **6 Degrees of Freedom**: Full 3D movement and rotation
-- **Inertial Physics**: Velocity-based movement with drag
-- **Angular Momentum**: Smooth rotation with damping
-- **Speed Limiting**: Automatic clamping to max velocity
-- **Arcade-style**: Immediate response with realistic momentum
-
-#### Weapons System (weapons.c)
-- **Dual Missiles**: Fires two missiles per volley (left/right offset)
-- **Guided Targeting**: Missiles track toward crosshair aim point
-- **Object Pooling**: Pre-allocated arrays for missiles (100) and explosions (50)
-- **Collision Detection**: Real-time checks against all targets
-- **Visual Feedback**: Expanding explosion animations
-
-#### Rendering Pipeline (render.c)
-- **Frame Buffer**: Character and color buffers for each screen position
-- **3D Projection**: Full camera transform pipeline (translate, rotate pitch/yaw/roll, project)
-- **Multiple Render Modes**: Starfield, ships, weapons, horizon, targets
-- **HUD Overlay**: Multi-layered display system (radar, indicators, stats)
-- **Efficient Updates**: Only redraw changed regions when possible
-
-#### Game Modes (modes.c)
-- **Mode Selection Menu**: Arrow key navigation with instant selection
-- **Training Mode**: Target spawning, collision detection, scoring
-- **Skeet Mode**: Clay pigeon physics with gravity, progressive difficulty
-- **Player Setup**: Auto-configuration based on selected mode
-- **Statistics Tracking**: Score, accuracy, time, performance metrics
+- 3D perspective projection (converting 3D positions to 2D screen)
+- Camera transformations (rotation using Euler angles)
+- Double-buffered rendering (flicker-free terminal animation)
+- Delta-time animation (frame-rate independent movement)
+- Six visual effects (linear, spiral, warp, tunnel, explode, wave)
+- CLI parameter control (--stars, --speed, --effect, --zoom)
+- Interactive keyboard controls
 
 ## Build Commands
 
 ```bash
 make              # Build the application
-make run          # Build and run the placeholder
-make test         # Run unit tests (when implemented)
+make run          # Build and run
+make test         # Run unit tests
+make benchmark    # Run performance benchmarks
 make clean        # Clean build artifacts
-make help         # Show all available make targets
+make help         # Show all available targets
 ```
+
+### Requirements
+
+- GCC compiler
+- ncurses library (`sudo apt install libncurses-dev`)
 
 ## Code Architecture
 
-### Module Structure
+### File Structure (~1,500 lines total)
 
-**Core Game Loop (main.c - 31KB)**:
-- Application entry point and main render loop
-- 60fps frame timing with delta-time calculation
-- Mode menu handling and game state management
-- Input processing (keyboard + joystick)
-- HUD rendering (crosshair, radar, enemy indicators, stats)
-- Integration point for all subsystems
+```
+terminal-stars/
+├── src/
+│   ├── main.c       (358 lines)  Main loop, CLI, input handling
+│   ├── effects.c    (270 lines)  Six visual effect implementations
+│   ├── starfield.c  (206 lines)  Star management and recycling
+│   ├── render.c     (273 lines)  3D projection and frame buffer
+│   └── terminal.c   (137 lines)  ncurses wrapper
+├── include/
+│   ├── types.h      (88 lines)   Core data structures
+│   ├── effects.h    (67 lines)   Effect declarations
+│   ├── starfield.h  Starfield management interface
+│   ├── render.h     Frame buffer interface
+│   └── terminal.h   Terminal abstraction
+└── tests/
+    ├── test_starfield.c  Unit tests
+    ├── test_render.c     Render tests
+    └── benchmark.c       Performance benchmarks
+```
 
-**Flight Physics (ship.c - 6KB)**:
-- Ship initialization and update logic
-- 6-DOF physics calculations
-- Pitch, yaw, roll control functions
-- Camera update for both cockpit and chase views
-- Forward vector calculation for thrust and weapons
+### Core Data Structures (types.h)
 
-**Weapons System (weapons.c - 6KB)**:
-- Missile and explosion management
-- Dual-missile firing with offset spawn positions
-- Guided missile trajectories
-- Collision detection against targets
-- Explosion animation with expanding radius
+```c
+// A single star in 3D space
+typedef struct {
+    double x, y, z;       // 3D position
+    uint8_t brightness;   // 1-4 for color selection
+    char character;       // Display character (*, ., +, ')
+} Star;
 
-**Game Modes (modes.c - 20KB)**:
-- Mode selection menu rendering and input handling
-- Player setup based on selected mode
-- Training mode: target spawning, collision, scoring
-- Skeet mode: clay pigeon physics, launchers, difficulty progression
-- HUD rendering for each mode
+// Camera for view transformations
+typedef struct {
+    double pos_x, pos_y, pos_z;  // Position in 3D space
+    double yaw, pitch, roll;      // Euler angles for rotation
+} Camera;
 
-**Rendering (render.c - 18KB)**:
-- Frame buffer creation, clearing, and display
-- 3D ship rendering with camera transforms
-- Starfield rendering with six different effects
-- Horizon rendering for skeet mode
-- Target circle and clay pigeon rendering
-- Text rendering for HUD elements
+// The starfield with all rendering parameters
+typedef struct {
+    Star *stars;
+    size_t star_count;
+    double speed;
+    Camera camera;
+    double zoom;
+    int effect_mode;
+} Starfield;
 
-**Starfield Effects (starfield.c + effects.c - 11KB total)**:
-- Star array management
-- Six effect implementations:
-  - EFFECT_LINEAR: Forward motion through stars
-  - EFFECT_SPIRAL: Spiral rotation pattern
-  - EFFECT_WARP: Hyperspeed with star stretching
-  - EFFECT_TUNNEL: Cylindrical tunnel effect
-  - EFFECT_EXPLODE: Outward expansion
-  - EFFECT_WAVE: Undulating wave motion
-- Torus roller coaster path (special effect)
+// Double-buffered frame for flicker-free rendering
+typedef struct {
+    char *buffer;    // Character buffer
+    int *colors;     // Color pair indices
+    int width, height;
+} FrameBuffer;
+```
 
-**Input Systems (input.c + gamepad.c - 11KB total)**:
-- Non-blocking keyboard input with getch()
-- SDL2 joystick initialization and polling
-- Dead zone handling for analog sticks
-- Button mapping and state tracking
-- Rumble/haptic feedback support
+### Module Responsibilities
 
-**Terminal Management (terminal.c - 2KB)**:
-- ncurses initialization and cleanup
-- Color pair setup (8 colors)
-- Terminal resize detection and handling
-- Screen size queries
+**main.c** - Application entry point
 
-### Key Design Patterns
+- CLI argument parsing with getopt_long
+- Main loop: input -> update -> render -> display
+- Keyboard control handling
+- HUD overlay display
 
-**Object Pooling**:
-- Pre-allocated arrays for missiles (MAX_MISSILES = 100)
-- Pre-allocated arrays for explosions (MAX_EXPLOSIONS = 50)
-- Pre-allocated arrays for targets (MAX_TRAINING_TARGETS = 20, MAX_CLAY_PIGEONS = 30)
-- Active/inactive flags instead of dynamic allocation
+**effects.c** - Six animation techniques
 
-**Delta-Time Physics**:
-- Frame-independent movement and rotation
-- Consistent behavior regardless of frame rate
-- All physics calculations scaled by delta_time
+- `effect_linear()` - Basic Z-axis translation
+- `effect_spiral()` - Polar coordinate rotation
+- `effect_warp()` - Fast motion with character morphing
+- `effect_tunnel()` - Constrained cylindrical motion
+- `effect_explode()` - Vector-based directional expansion
+- `effect_wave()` - Sinusoidal oscillation
 
-**State Machines**:
-- Game modes with clear state transitions
-- Control modes (keyboard, joystick, AI, inactive)
-- AI behavior types (orbital, hunting, evasive, formation)
+**render.c** - 3D graphics pipeline
 
-**Separation of Concerns**:
-- Physics calculations in ship.c
-- Rendering in render.c
-- Game logic in modes.c and main.c
-- Input handling in input.c and gamepad.c
+- Frame buffer management (create, clear, display, destroy)
+- 3D-to-2D perspective projection
+- Camera rotation transforms (yaw, pitch, roll)
+- Depth-based brightness selection
 
-**Camera Transform Pipeline**:
-1. Calculate position relative to camera
-2. Apply yaw rotation (around Y-axis)
-3. Apply pitch rotation (around X-axis)
-4. Apply roll rotation (around Z-axis)
-5. Project to 2D screen coordinates
-6. Clip objects behind camera (Z <= 0)
+**starfield.c** - Star lifecycle
 
-## Implementation History
+- Star array allocation and initialization
+- Star recycling when they leave view
+- Effect-specific update dispatching
 
-### Phase 1: Foundation (Completed)
-- ✅ Terminal initialization with ncurses
-- ✅ Frame buffer structure with character and color arrays
-- ✅ Star rendering and perspective projection
+**terminal.c** - ncurses abstraction
 
-### Phase 2: Starfield Effects (Completed)
-- ✅ Six visual effects implemented
-- ✅ Delta-time-based animation
-- ✅ 60fps rendering achieved
-- ✅ Effect switching and speed controls
+- Terminal initialization with proper modes
+- Color pair setup (white, cyan, blue, yellow)
+- Resize detection via SIGWINCH
 
-### Phase 3: 3D Flight (Completed)
-- ✅ 6-DOF ship physics
-- ✅ Camera system (cockpit + chase views)
-- ✅ Ship rendering in 3D space
-- ✅ Full flight controls
+### Key Algorithms
 
-### Phase 4: Combat Systems (Completed)
-- ✅ Dual-missile weapons system
-- ✅ Explosion visual effects
-- ✅ Collision detection
-- ✅ Advanced HUD (radar, enemy tracking)
+**Perspective Projection** (render.c):
 
-### Phase 5: Multiplayer & Modes (Completed)
-- ✅ Game mode selection menu
-- ✅ Single player vs AI
-- ✅ Dual player competitive
-- ✅ Co-op mode
-- ✅ Training simulator with targets
-- ✅ USB joystick support (SDL2)
+```c
+// The core formula: distant objects appear smaller
+screen_x = center_x + (view_x / view_z) * zoom;
+screen_y = center_y + (view_y / view_z) * zoom;
+```
 
-### Phase 6: Skeet Shooting (Completed - PR #5)
-- ✅ Clay pigeon ballistic physics
-- ✅ Horizon rendering
-- ✅ Three launcher positions
-- ✅ Progressive difficulty system
-- ✅ Target circle reticle
+**Camera Rotation** (render.c):
 
-## Enhancement Opportunities
+```c
+// Apply Euler angles in order: yaw -> pitch -> roll
+// Yaw: rotate around Y axis
+temp_x = view_x * cos(-yaw) - view_z * sin(-yaw);
+// Pitch: rotate around X axis
+temp_z = view_z * cos(-pitch) - view_y * sin(-pitch);
+// Roll: rotate around Z axis
+temp_x = view_x * cos(-roll) - view_y * sin(-roll);
+```
 
-### Immediate Opportunities
-1. **Active Combat AI**: Implement AI_HUNTING behavior
-   - Chase player with predictive tracking
-   - Fire missiles at player
-   - Evasive maneuvers when under fire
+**Delta-Time Animation** (effects.c):
 
-2. **Health & Damage**: Expand health system
-   - Ship-to-ship collision damage
-   - Missile hit detection on ships
-   - Shield regeneration over time
-   - Visual damage indicators
+```c
+// Movement scaled by elapsed time = consistent speed at any frame rate
+star->z -= speed * delta_time;
+```
 
-3. **Wave-Based Combat**: Add progressive enemy waves
-   - Spawn multiple enemies
-   - Increasing difficulty
-   - Boss encounters
-   - Score multipliers
+## CLI Options
 
-### Long-term Enhancements
-1. **Persistent Profiles**: Save/load game progress
-2. **Custom Key Bindings**: User-configurable controls
-3. **Network Multiplayer**: TCP/IP based multiplayer
-4. **Mission System**: Story-driven objectives
-5. **Sound Effects**: Terminal beep-based audio
-6. **Replay System**: Record and playback sessions
+```
+./terminal-stars [options]
+
+Options:
+  -s, --stars N     Number of stars (default: 500, range: 10-5000)
+  -p, --speed F     Speed multiplier (default: 1.0, range: 0.1-5.0)
+  -e, --effect E    Effect name or number 1-6 (default: linear)
+  -z, --zoom F      Zoom level (default: 50.0, range: 10-200)
+  -h, --help        Show help message
+```
+
+## Keyboard Controls
+
+| Key   | Action                  |
+| ----- | ----------------------- |
+| Tab   | Cycle to next effect    |
+| 1-6   | Select effect directly  |
+| +/-   | Increase/decrease speed |
+| [/]   | Decrease/increase zoom  |
+| Q/ESC | Quit                    |
+
+## Learning Path
+
+1. **Start with types.h** - Understand the core data structures
+2. **Read terminal.c** - See how ncurses is initialized
+3. **Study render.c** - Learn the 3D-to-2D projection formula
+4. **Explore effects.c** - See six different animation techniques
+5. **Follow main.c** - Understand the main loop structure
 
 ## Related Projects
 
-Reference `../boxes-live` for frame buffering implementation patterns.
+| Project                                                      | Description                                        |
+| ------------------------------------------------------------ | -------------------------------------------------- |
+| [atari-style](https://github.com/jcaldwell-labs/atari-style) | Full terminal shader program with flight simulator |
+| [boxes-live](https://github.com/jcaldwell-labs/boxes-live)   | Terminal UI library                                |
+
+## Enhancement Opportunities
+
+This is an educational project. Simple enhancements that maintain clarity:
+
+1. **Additional effects** - Implement new visual patterns
+2. **Color schemes** - Add different color palettes
+3. **Star shapes** - Vary characters based on distance
+4. **Mouse support** - Camera control with mouse
+5. **Config file** - Load settings from file
+
+Keep changes focused and well-documented to maintain educational value.
