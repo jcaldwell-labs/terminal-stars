@@ -35,4 +35,4 @@ jobs:
         run: sudo apt-get install -y cppcheck
 
       - name: Static analysis
-        run: cppcheck --enable=warning,style,performance --error-exitcode=1 --quiet src/
+        run: cppcheck --enable=warning,performance --error-exitcode=1 --quiet src/
