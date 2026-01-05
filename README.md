@@ -1,165 +1,164 @@
 # Terminal Stars
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Language: C](https://img.shields.io/badge/language-C-blue.svg)](https://en.wikipedia.org/wiki/C_(programming_language))
 [![CI](https://github.com/jcaldwell-labs/terminal-stars/actions/workflows/ci.yml/badge.svg)](https://github.com/jcaldwell-labs/terminal-stars/actions/workflows/ci.yml)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Language: C](https://img.shields.io/badge/language-C-blue.svg)](<https://en.wikipedia.org/wiki/C_(programming_language)>)
 
-A terminal-based 3D space combat simulator written in C using frame buffering. Features 6-DOF flight physics, weapons systems, five game modes including skeet shooting, and USB joystick support.
+**An educational 3D starfield visualizer for the terminal.**
 
-## Why Terminal Stars?
+Terminal Stars demonstrates core concepts of terminal graphics programming in clean, well-commented C code:
 
-**Immersive 3D gameplay directly in your terminal** - no GUI, no browser, no dependencies beyond ncurses.
+- **3D Perspective Projection** - Convert 3D positions to 2D screen coordinates
+- **Camera Transformations** - Rotate the view using Euler angles (yaw, pitch, roll)
+- **Double Buffering** - Flicker-free terminal animation
+- **Delta-Time Animation** - Frame-rate independent movement
+- **Visual Effects** - Six different animation techniques
 
-- **Lightweight**: Runs on any system with a terminal and C compiler
-- **Authentic retro feel**: ASCII graphics with modern 60fps rendering
-- **Complete game experience**: Five distinct modes from combat to training
-- **Controller support**: Play with USB gamepads or keyboard
-- **Educational**: Learn 3D rendering, physics, and game architecture in pure C
-
-**Perfect for:**
-- Developers wanting a fun break without leaving the terminal
-- Retro gaming enthusiasts who appreciate ASCII aesthetics
-- Anyone learning C game development patterns
-- SSH sessions where GUI games aren't an option
+> **Looking for the full flight combat simulator?**
+> See [atari-style](https://github.com/jcaldwell-labs/atari-style) for the complete terminal shader program.
 
 ## Demo
 
 ```
-            *        *                    *
-      *                    * . *              *
-              ___________
-         *   /  RADAR  \        *       *
-            |    @    E |     SPEED: 85 m/s
-  *         |     |     |     HEALTH: ***
-            \_________/      MISSILES: 44
-       *              *              [READY]
-    *      o     o              *
-              [+]           *        *
-         *        >====>                   *
+           *        .    *         +
+      .         *            *          .
+                     *   .        '
+         *    +              *        *
+    .              .    *         .
+            *           +     *
+      +         *   .              *
+           .              *    .
+         *      +    .         *    '
 ```
-
-*Try it yourself - build and run in under 30 seconds!*
 
 ## Quick Start
 
-### Prerequisites
-
 ```bash
-# Debian/Ubuntu
-sudo apt-get install libncurses-dev
-
-# macOS
-brew install ncurses
-```
-
-### Build and Run
-
-```bash
-git clone https://github.com/jcaldwell-labs/terminal-stars.git
-cd terminal-stars
+# Build
 make
-./build/terminal-stars
+
+# Run with defaults
+./terminal-stars
+
+# Run with custom options
+./terminal-stars --stars 1000 --speed 1.5 --effect spiral
 ```
 
-That's it! Select a mode with arrow keys and press Enter.
+### Requirements
 
-### Optional: Joystick Support
+- GCC compiler
+- ncurses library (`sudo apt install libncurses-dev`)
 
-```bash
-# Debian/Ubuntu
-sudo apt-get install libsdl2-dev
+## Usage
 
-# macOS
-brew install sdl2
+```
+./terminal-stars [options]
+
+Options:
+  -s, --stars N     Number of stars (default: 500)
+  -p, --speed F     Speed multiplier 0.1-5.0 (default: 1.0)
+  -e, --effect E    Effect name or 1-6 (default: linear)
+  -z, --zoom F      Zoom level 10-200 (default: 50.0)
+  -h, --help        Show help
 ```
 
-## Features
+## Keyboard Controls
 
-### Five Game Modes
+| Key       | Action                  |
+| --------- | ----------------------- |
+| **Tab**   | Cycle to next effect    |
+| **1-6**   | Select effect directly  |
+| **+/-**   | Increase/decrease speed |
+| **[/]**   | Decrease/increase zoom  |
+| **Q/ESC** | Quit                    |
 
-| Mode | Description | Best For |
-|------|-------------|----------|
-| **Single Player** | Combat against AI opponent | Solo practice |
-| **Dual Player** | Head-to-head space combat | Competitive play |
-| **Co-op** | Team up for formation flying | Learning together |
-| **Training** | Target practice with patterns | Skill building |
-| **Skeet Shooting** | Clay pigeons with ballistics | Precision practice |
+## The Six Effects
 
-### Flight Physics (6-DOF)
+| #   | Effect      | Technique                           |
+| --- | ----------- | ----------------------------------- |
+| 1   | **Linear**  | Basic Z-axis translation            |
+| 2   | **Spiral**  | Polar coordinate rotation           |
+| 3   | **Warp**    | Fast motion with character morphing |
+| 4   | **Tunnel**  | Constrained cylindrical motion      |
+| 5   | **Explode** | Vector-based directional expansion  |
+| 6   | **Wave**    | Sinusoidal oscillation              |
 
-Full 3 degrees of freedom for movement and 3 for rotation:
-- **Pitch, Yaw, Roll**: Independent control of all axes
-- **Inertial physics**: Momentum-based movement with drag
-- **Arcade-style**: Responsive controls with realistic feel
-- **Speed limiting**: Automatic clamping to max velocity
+## Code Structure
 
-### Weapons System
+```
+terminal-stars/
+├── src/
+│   ├── main.c       (358 lines)  Main loop, CLI, input handling
+│   ├── effects.c    (270 lines)  Six visual effect implementations
+│   ├── starfield.c  (206 lines)  Star management and recycling
+│   ├── render.c     (273 lines)  3D projection and frame buffer
+│   └── terminal.c   (137 lines)  ncurses wrapper
+├── include/
+│   ├── types.h      Core data structures (Star, Camera, Starfield)
+│   ├── effects.h    Effect function declarations
+│   ├── render.h     Frame buffer interface
+│   ├── starfield.h  Starfield management interface
+│   └── terminal.h   Terminal abstraction
+└── tests/
+    ├── test_starfield.c  Unit tests
+    └── test_render.c     Render tests
+```
 
-- **Dual missiles**: Fire two per volley with left/right offset
-- **Guided targeting**: Missiles track toward crosshair
-- **Visual feedback**: Expanding explosion animations
-- **Collision detection**: Real-time checks against all targets
+**~1,500 lines total** (including educational comments)
 
-### Advanced HUD
+## Learning Path
 
-- **Radar overlay**: 9x9 grid showing enemies and missiles
-- **Enemy tracking**: Direction indicator when off-screen
-- **Status displays**: Speed, health, ammo, fire readiness
-- **Camera modes**: Cockpit (first-person) and chase (third-person)
+### 1. Start with `types.h`
 
-### Six Starfield Effects
+Understand the core data structures: `Star`, `Camera`, `Starfield`, `FrameBuffer`.
 
-Cycle through with Tab key:
-1. **Linear** - Forward motion through stars
-2. **Spiral** - Mesmerizing rotation pattern
-3. **Warp** - Hyperspeed with star stretching
-4. **Tunnel** - Cylindrical tunnel effect
-5. **Explode** - Outward expansion from center
-6. **Wave** - Undulating wave motion
+### 2. Read `terminal.c`
 
-## Controls
+See how ncurses is initialized for smooth animation.
 
-### Keyboard (Player 1)
+### 3. Study `render.c`
 
-| Key | Action |
-|-----|--------|
-| W/S | Pitch up/down |
-| A/D | Yaw left/right |
-| Q/E | Roll left/right |
-| Space | Thrust |
-| F | Fire missiles |
-| V | Toggle camera |
-| Tab | Cycle effects |
-| M | Return to menu |
+Learn the 3D-to-2D projection formula and camera transformations.
 
-### Keyboard (Player 2)
+### 4. Explore `effects.c`
 
-| Key | Action |
-|-----|--------|
-| Arrow Keys | Pitch and Yaw |
-| < / > | Roll |
-| Enter | Thrust/Fire |
+See six different animation techniques with detailed comments.
 
-### Gamepad
+### 5. Follow `main.c`
 
-- **Left stick**: Pitch and yaw
-- **Right stick/bumpers**: Roll
-- **RT/A**: Thrust
-- **X**: Fire
-- **Y**: Toggle camera
+Understand the main loop: input → update → render → display.
 
-See [MODE-GUIDE.md](docs/guides/MODE-GUIDE.md) for complete control reference.
+## Key Concepts Explained
 
-## Documentation
+### Perspective Projection
 
-| Document | Description |
-|----------|-------------|
-| [Features](docs/FEATURES.md) | Complete feature documentation |
-| [Mode Guide](docs/guides/MODE-GUIDE.md) | Detailed gameplay guide for all modes |
-| [Contributing](CONTRIBUTING.md) | How to contribute |
-| [Changelog](CHANGELOG.md) | Version history |
-| [Roadmap](.github/planning/ROADMAP.md) | Future development plans |
+```c
+// The key formula for 3D-to-2D projection:
+screen_x = center_x + (view_x / view_z) * zoom;
+screen_y = center_y + (view_y / view_z) * zoom;
+
+// Division by z makes distant objects smaller
+```
+
+### Camera Rotation (Euler Angles)
+
+```c
+// Yaw: rotate around Y axis (turn left/right)
+temp_x = view_x * cos(-yaw) - view_z * sin(-yaw);
+
+// Pitch: rotate around X axis (look up/down)
+temp_z = view_z * cos(-pitch) - view_y * sin(-pitch);
+
+// Roll: rotate around Z axis (tilt head)
+temp_x = view_x * cos(-roll) - view_y * sin(-roll);
+```
+
+### Delta-Time Animation
+
+```c
+// Movement scaled by time = consistent speed regardless of frame rate
+star->z -= speed * delta_time;
+```
 
 ## Build Commands
 
@@ -168,91 +167,20 @@ make              # Build the application
 make run          # Build and run
 make test         # Run unit tests
 make benchmark    # Run performance benchmarks
-make validate     # Validate terminal compatibility
-make install      # Install to /usr/local
-make clean        # Clean build artifacts
+make clean        # Remove build artifacts
 make help         # Show all targets
 ```
 
-## Project Structure
+## Related Projects
 
-```
-terminal-stars/
-├── src/                 # Source files
-│   ├── main.c           # Game loop and HUD
-│   ├── ship.c           # 6-DOF physics
-│   ├── weapons.c        # Missiles and explosions
-│   ├── modes.c          # Game modes
-│   ├── render.c         # 3D rendering
-│   ├── gamepad.c        # Joystick support
-│   └── ...
-├── include/             # Headers
-├── tests/               # Unit tests
-├── docs/                # Documentation
-│   ├── guides/          # How-to guides
-│   └── FEATURES.md      # Feature reference
-└── .github/
-    └── planning/        # Roadmap and backlog
-```
-
-## Requirements
-
-- **Compiler**: GCC or Clang with C99 support
-- **Libraries**: ncurses (required), SDL2 (optional for gamepad)
-- **Terminal**: 80x24 minimum, 8+ colors
-- **Performance**: Targets 60 FPS
-
-Tested on: Linux (Ubuntu, Debian), macOS, WSL2
+| Project                                                      | Description                                        |
+| ------------------------------------------------------------ | -------------------------------------------------- |
+| [atari-style](https://github.com/jcaldwell-labs/atari-style) | Full terminal shader program with flight simulator |
+| [boxes-live](https://github.com/jcaldwell-labs/boxes-live)   | Terminal UI library                                |
 
 ## Contributing
 
-Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-### Quick Contribution Guide
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes
-4. Push to the branch
-5. Open a Pull Request
-
-## Community
-
-- **Issues**: [GitHub Issues](https://github.com/jcaldwell-labs/terminal-stars/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/jcaldwell-labs/terminal-stars/discussions)
-
-## Related jcaldwell-labs Projects
-
-Terminal Stars is part of a collection of terminal-focused tools and games from jcaldwell-labs.
-
-### Terminal/TUI Projects
-
-| Project | Description | Synergy |
-|---------|-------------|---------|
-| [boxes-live](https://github.com/jcaldwell-labs/boxes-live) | Real-time ASCII box drawing with joystick support | Shared frame buffering patterns and joystick input handling |
-| [my-grid](https://github.com/jcaldwell-labs/my-grid) | ASCII canvas editor with vim-style navigation | Zone rendering techniques applicable to HUD layouts |
-| [atari-style](https://github.com/jcaldwell-labs/atari-style) | Retro visual effects and shaders for terminals | Visual effects can enhance starfield and explosion rendering |
-| [smartterm-prototype](https://github.com/jcaldwell-labs/smartterm-prototype) | Smart terminal with readline-like features | Terminal management patterns for ncurses applications |
-
-### CLI Tools
-
-| Project | Description |
-|---------|-------------|
-| [my-context](https://github.com/jcaldwell-labs/my-context) | Context tracking for development sessions (Go CLI) |
-| [fintrack](https://github.com/jcaldwell-labs/fintrack) | Personal finance tracking CLI (Go) |
-| [tario](https://github.com/jcaldwell-labs/tario) | Terminal-based platformer game (Go) |
-
-### Game Engines
-
-| Project | Description | Synergy |
-|---------|-------------|---------|
-| [adventure-engine-v2](https://github.com/jcaldwell-labs/adventure-engine-v2) | Multiplayer text adventure engine (C) | Shared C patterns for game state management |
-
-### Meta/Organization
-
-| Project | Description |
-|---------|-------------|
-| [capability-catalog](https://github.com/jcaldwell-labs/capability-catalog) | Skill/capability definitions for AI agents |
+Contributions welcome! This is an educational project - improvements to code clarity and documentation are especially appreciated.
 
 ## License
 
@@ -260,4 +188,4 @@ MIT License - See [LICENSE](LICENSE) file for details.
 
 ---
 
-**Built with love for the terminal.**
+_A clean, educational demonstration of terminal graphics in C._
