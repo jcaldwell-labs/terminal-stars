@@ -1,0 +1,81 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+      - 'v*-rc*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version info
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build release
+        run: make
+
+      - name: Create release archive
+        run: |
+          mkdir -p release
+          cp stars release/ 2>/dev/null || true
+          cp README.md CHANGELOG.md LICENSE release/ 2>/dev/null || true
+          tar -czvf terminal-stars-${{ steps.version.outputs.version }}-linux-amd64.tar.gz -C release .
+          sha256sum terminal-stars-${{ steps.version.outputs.version }}-linux-amd64.tar.gz > terminal-stars-${{ steps.version.outputs.version }}-linux-amd64.tar.gz.sha256
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-binaries
+          path: |
+            *.tar.gz
+            *.sha256
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-binaries
+          path: ./release-binaries
+
+      - name: Determine prerelease
+        id: prerelease
+        run: |
+          if [[ "$GITHUB_REF" == *"-rc"* ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ./release-binaries/*
+          draft: false
+          prerelease: ${{ steps.prerelease.outputs.is_prerelease }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
